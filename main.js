@@ -17,18 +17,63 @@ const lenis = new Lenis({
   gestureDirection: 'vertical',
   smooth: true,
   mouseMultiplier: 1,
-  smoothTouch: false,
-  touchMultiplier: 2,
-  infinite: false,
 })
 
 lenis.on('scroll', ScrollTrigger.update)
-
-gsap.ticker.add((time) => {
-  lenis.raf(time * 1000)
-})
-
+gsap.ticker.add((time) => { lenis.raf(time * 1000) })
 gsap.ticker.lagSmoothing(0)
+
+/* =========================================
+   MOUSE TRACKING (GLOW & MAGNET)
+   ========================================= */
+const root = document.documentElement;
+
+document.addEventListener('mousemove', (e) => {
+  root.style.setProperty('--mouse-x', `${e.clientX}px`);
+  root.style.setProperty('--mouse-y', `${e.clientY}px`);
+});
+
+// Magnetic Buttons
+const magneticBtns = document.querySelectorAll('.magnetic-btn');
+
+magneticBtns.forEach(btn => {
+  btn.addEventListener('mousemove', (e) => {
+    const rect = btn.getBoundingClientRect();
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+    
+    gsap.to(btn, {
+      x: x * 0.3,
+      y: y * 0.3,
+      duration: 0.5,
+      ease: 'power3.out'
+    });
+    
+    gsap.to(btn.querySelector('.btn-text'), {
+      x: x * 0.1,
+      y: y * 0.1,
+      duration: 0.5,
+      ease: 'power3.out'
+    });
+  });
+
+  btn.addEventListener('mouseleave', () => {
+    gsap.to(btn, { x: 0, y: 0, duration: 0.7, ease: 'elastic.out(1, 0.3)' });
+    gsap.to(btn.querySelector('.btn-text'), { x: 0, y: 0, duration: 0.7, ease: 'elastic.out(1, 0.3)' });
+  });
+});
+
+// Card Glow Tracker
+const premiumCards = document.querySelectorAll('.premium-hover');
+premiumCards.forEach(card => {
+  card.addEventListener('mousemove', (e) => {
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    card.style.setProperty('--mouse-x', `${x}px`);
+    card.style.setProperty('--mouse-y', `${y}px`);
+  });
+});
 
 /* =========================================
    INITIAL LOAD ANIMATION
@@ -42,151 +87,112 @@ const tl = gsap.timeline({
 
 document.body.style.overflow = 'hidden'
 
-// 1. Preloader
+// Preloader
 tl.to('.preloader .char', {
-  y: '0%',
-  opacity: 1,
-  duration: 1,
-  stagger: 0.05,
-  ease: 'power4.out'
+  y: '0%', opacity: 1, duration: 1, stagger: 0.05, ease: 'power4.out'
 })
 .to('.preloader .char', {
-  y: '-100%',
-  opacity: 0,
-  duration: 0.8,
-  stagger: 0.02,
-  ease: 'power3.in',
-  delay: 0.5
+  y: '-100%', opacity: 0, duration: 0.8, stagger: 0.02, ease: 'power3.in', delay: 0.3
 })
 .to('.preloader', {
-  yPercent: -100,
-  duration: 1,
-  ease: 'expo.inOut'
+  yPercent: -100, duration: 1, ease: 'expo.inOut'
 }, '-=0.5')
 
-// 2. Hero Reveal
-tl.fromTo('.hero-title-inner', 
-  { y: '100%' },
-  { y: '0%', duration: 1.2, ease: 'expo.out' },
+// Hero Reveal (Clip-path/Translate)
+tl.fromTo('.line-inner', 
+  { y: '100%', rotate: 5 },
+  { y: '0%', rotate: 0, duration: 1.4, stagger: 0.1, ease: 'power4.out' },
   '-=0.5'
 )
 
 tl.to('.hero-image-wrapper', {
-  opacity: 1,
-  scale: 1,
-  duration: 1,
-  ease: 'power3.out'
-}, '-=1')
+  opacity: 1, scale: 1, duration: 1.5, ease: 'power3.out'
+}, '-=1.2')
 
 tl.to('.image-reveal-mask', {
-  yPercent: -100,
-  duration: 1.2,
-  ease: 'expo.inOut'
-}, '-=1')
+  yPercent: -100, duration: 1.2, ease: 'expo.inOut'
+}, '-=1.2')
 
 tl.to('.bio-line-inner', {
-  y: '0%',
-  opacity: 1,
-  duration: 1,
-  stagger: 0.1,
-  ease: 'power3.out'
-}, '-=0.8')
+  y: '0%', duration: 1.2, stagger: 0.1, ease: 'power3.out'
+}, '-=1')
 
 tl.to('.scroll-indicator', {
-  opacity: 1,
-  y: -10,
-  duration: 1,
-  ease: 'power2.out'
+  opacity: 1, duration: 1, ease: 'power2.out'
 }, '-=0.5')
-
-gsap.to('.scroll-indicator', {
-  y: 0,
-  duration: 1.5,
-  repeat: -1,
-  yoyo: true,
-  ease: 'sine.inOut',
-  delay: 3
-})
 
 /* =========================================
    HERO SCROLL PARALLAX
    ========================================= */
 gsap.to('.hero-image', {
-  yPercent: 20,
-  ease: 'none',
+  yPercent: 15, scale: 1.05, ease: 'none',
   scrollTrigger: {
-    trigger: '.hero',
-    start: 'top top',
-    end: 'bottom top',
-    scrub: true
+    trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true
   }
 })
 
-gsap.to('.hero-content', {
-  y: -100,
-  opacity: 0,
-  ease: 'none',
+gsap.to('.hero-left', {
+  yPercent: -30, opacity: 0, ease: 'none',
   scrollTrigger: {
-    trigger: '.hero',
-    start: 'top top',
-    end: 'bottom top',
-    scrub: true
+    trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true
   }
 })
 
 /* =========================================
-   OMEGA VAULT HORIZONTAL SCROLL
+   OMEGA VAULT HORIZONTAL SCROLL (FIXED)
    ========================================= */
 const scrollContainer = document.querySelector('.ov-scroll-container');
-const cards = gsap.utils.toArray('.ov-card');
 
 // Reveal header
-gsap.from('.ov-header .section-title, .ov-header .section-subtitle', {
-  y: 50,
-  opacity: 0,
-  duration: 1,
-  stagger: 0.2,
-  ease: 'power3.out',
+gsap.from('.ov-header > *', {
+  y: 40, opacity: 0, duration: 1, stagger: 0.1, ease: 'power3.out',
   scrollTrigger: {
-    trigger: '.omega-vault',
-    start: 'top 75%'
+    trigger: '.omega-vault', start: 'top 75%'
   }
 })
 
-// Horizontal Scroll logic
-let scrollTween = gsap.to(cards, {
-  xPercent: -100 * (cards.length - 1),
+// Calculate the exact distance to scroll horizontally
+function getScrollAmount() {
+  let containerWidth = scrollContainer.scrollWidth;
+  return -(containerWidth - window.innerWidth + (window.innerWidth * 0.05)); // 5vw padding offset
+}
+
+const tween = gsap.to(scrollContainer, {
+  x: getScrollAmount,
   ease: "none",
   scrollTrigger: {
     trigger: ".ov-pin-wrapper",
     pin: true,
     scrub: 1,
-    end: () => "+=" + scrollContainer.offsetWidth
+    end: () => `+=${getScrollAmount() * -1}`
+  }
+});
+
+// Update calculation on resize
+ScrollTrigger.addEventListener("refresh", () => {
+  if (tween) {
+    tween.vars.x = getScrollAmount;
+    tween.invalidate();
   }
 });
 
 /* =========================================
    AI EXECUTION OS REVEALS
    ========================================= */
-
-// Reveal Header
 gsap.from('.ai-exec-header > *', {
-  y: 40,
-  opacity: 0,
-  duration: 1,
-  stagger: 0.1,
-  ease: 'power3.out',
+  y: 40, opacity: 0, duration: 1, stagger: 0.1, ease: 'power3.out',
   scrollTrigger: {
-    trigger: '.ai-exec-header',
-    start: 'top 80%'
+    trigger: '.ai-exec-header', start: 'top 80%'
   }
 })
 
-// Stagger Council Panels
-gsap.from('.expert-panel', {
-  y: 30,
+// Premium Clip-path Reveal for Grid
+gsap.from('.clip-reveal', {
+  y: 60,
   opacity: 0,
-  duration: 0.8,
+  scale: 0.95,
+  rotationX: -5,
+  duration: 1.2,
   stagger: 0.1,
   ease: 'power3.out',
   scrollTrigger: {
@@ -195,14 +201,9 @@ gsap.from('.expert-panel', {
   }
 })
 
-// Footer Button Reveal
 gsap.from('.ai-exec-footer', {
-  y: 20,
-  opacity: 0,
-  duration: 0.8,
-  ease: 'power3.out',
+  y: 20, opacity: 0, duration: 0.8, ease: 'power3.out',
   scrollTrigger: {
-    trigger: '.ai-exec-footer',
-    start: 'top 90%'
+    trigger: '.ai-exec-footer', start: 'top 90%'
   }
 })

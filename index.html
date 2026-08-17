@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NICOLAS AI | Premium Portfolio</title>
+    <title>NICOLAS AI | Premium Execution</title>
     
     <!-- Premium Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,8 +14,11 @@
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
-    <!-- Noise Overlay -->
+    <!-- Global Noise -->
     <div class="noise-overlay"></div>
+    
+    <!-- Cursor Glow Tracking -->
+    <div class="cursor-glow"></div>
 
     <!-- Preloader -->
     <div class="preloader">
@@ -29,84 +32,100 @@
       <div class="smooth-content">
         
         <main>
-          <!-- Hero Section -->
+          <!-- AWWWARDS STYLE HERO -->
           <section class="hero" id="hero">
+            <header class="hero-nav">
+              <div class="nav-brand">N.AI</div>
+              <div class="nav-status">
+                <span class="status-dot"></span>
+                <span>Systems Online</span>
+              </div>
+            </header>
+
             <div class="hero-container">
-              <div class="hero-image-wrapper">
-                <img src="/profile.jpg" alt="Nicolas AI Profile" class="hero-image" />
-                <div class="image-reveal-mask"></div>
-              </div>
               
-              <div class="hero-content">
-                <h1 class="hero-title"><span class="hero-title-inner">NICOLAS <span class="italic">AI</span></span></h1>
-                
-                <div class="hero-bio-wrapper">
-                  <p class="hero-bio">
-                    <span class="bio-line"><span class="bio-line-inner">300+ AI Execution OS & Prompts</span></span>
-                    <span class="bio-line"><span class="bio-line-inner">AI • Automation • Productivity</span></span>
-                    <span class="bio-line"><span class="bio-line-inner">Learn Faster. Build Smarter.</span></span>
-                  </p>
+              <div class="hero-grid">
+                <div class="hero-left">
+                  <h1 class="hero-title">
+                    <span class="line-mask"><span class="line-inner">NICOLAS</span></span>
+                    <span class="line-mask"><span class="line-inner italic">AI</span></span>
+                  </h1>
+                  
+                  <div class="hero-bio">
+                    <span class="bio-line-mask"><span class="bio-line-inner">Architecting Autonomous Systems.</span></span>
+                    <span class="bio-line-mask"><span class="bio-line-inner">300+ AI Execution OS & Prompts.</span></span>
+                    <span class="bio-line-mask"><span class="bio-line-inner">Learn Faster. Build Smarter.</span></span>
+                  </div>
                 </div>
-                
-                <div class="scroll-indicator">
-                  <span class="scroll-text">↓ Descubra o ecossistema</span>
+
+                <div class="hero-right">
+                  <div class="hero-image-wrapper">
+                    <img src="/profile.jpg" alt="Nicolas AI Profile" class="hero-image" />
+                    <div class="image-reveal-mask"></div>
+                  </div>
                 </div>
               </div>
+
+            </div>
+            
+            <div class="scroll-indicator">
+              <div class="scroll-line"></div>
+              <span class="scroll-text">DESCUBRA O ECOSSISTEMA</span>
             </div>
           </section>
 
-          <!-- Omega Vault Section (Horizontal Scroll) -->
+          <!-- OMEGA VAULT SECTION (Fixed Scroll) -->
           <section class="omega-vault" id="omega-vault">
             <div class="ov-header">
               <h2 class="section-title">Omega Vault</h2>
-              <p class="section-subtitle">Acervo de ativos de IA prontos para produção. Paga uma vez, entra para sempre.</p>
+              <p class="section-subtitle">O cofre definitivo de ativos prontos para produção. Pague uma vez, acesse para sempre.</p>
             </div>
             
             <div class="ov-pin-wrapper">
               <div class="ov-scroll-container">
                 
-                <!-- Card 1 -->
-                <div class="ov-card">
+                <div class="ov-card premium-hover">
+                  <div class="card-glow"></div>
                   <div class="ov-card-inner">
                     <span class="ov-card-number">01</span>
                     <h3 class="ov-card-title">Claude Skills</h3>
-                    <p class="ov-card-desc">Arquivos que você instala no Claude. Ele ganha uma habilidade nova e mantém para sempre.</p>
+                    <p class="ov-card-desc">Arquivos injetáveis no Claude. Ele ganha uma habilidade especializada instantaneamente.</p>
                   </div>
                 </div>
 
-                <!-- Card 2 -->
-                <div class="ov-card">
+                <div class="ov-card premium-hover">
+                  <div class="card-glow"></div>
                   <div class="ov-card-inner">
                     <span class="ov-card-number">02</span>
                     <h3 class="ov-card-title">MCPs</h3>
-                    <p class="ov-card-desc">Conectores para seus arquivos e sistemas. A IA para de só conversar e começa a fazer.</p>
+                    <p class="ov-card-desc">Conectores vitais para seus sistemas locais. A IA deixa de falar e passa a operar.</p>
                   </div>
                 </div>
 
-                <!-- Card 3 -->
-                <div class="ov-card">
+                <div class="ov-card premium-hover">
+                  <div class="card-glow"></div>
                   <div class="ov-card-inner">
                     <span class="ov-card-number">03</span>
-                    <h3 class="ov-card-title">Premium Prompts</h3>
-                    <p class="ov-card-desc">Prompts longos, prontos, escritos para uma tarefa só. Você cola e roda.</p>
+                    <h3 class="ov-card-title">Prompts</h3>
+                    <p class="ov-card-desc">Engenharia reversa em tarefas complexas. Um prompt longo que entrega o trabalho final.</p>
                   </div>
                 </div>
 
-                <!-- Card 4 -->
-                <div class="ov-card">
+                <div class="ov-card premium-hover">
+                  <div class="card-glow"></div>
                   <div class="ov-card-inner">
                     <span class="ov-card-number">04</span>
-                    <h3 class="ov-card-title">Agents & Workflows</h3>
-                    <p class="ov-card-desc">O caminho inteiro pronto, do começo à entrega. Agentes que sabem o papel e quando parar.</p>
+                    <h3 class="ov-card-title">Workflows</h3>
+                    <p class="ov-card-desc">Agentes orquestrados. Eles sabem a ordem de execução, o escopo e quando entregar.</p>
                   </div>
                 </div>
 
-                <!-- Card CTA -->
+                <!-- Final Card CTA -->
                 <div class="ov-card ov-card-cta">
                   <div class="ov-card-inner">
-                    <a href="https://omegavault.com.br/" target="_blank" rel="noopener noreferrer" class="premium-button">
-                      <span>Abrir o Cofre</span>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <a href="https://omegavault.com.br/" target="_blank" rel="noopener noreferrer" class="magnetic-btn premium-button">
+                      <span class="btn-text">Abrir o Cofre</span>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M5 12h14M12 5l7 7-7 7"/>
                       </svg>
                     </a>
@@ -117,14 +136,14 @@
             </div>
           </section>
 
-          <!-- AI Execution OS Section -->
+          <!-- AI EXECUTION OS SECTION -->
           <section class="ai-exec" id="ai-exec">
             <div class="ai-exec-container">
               
               <div class="ai-exec-header">
-                <span class="mono-label">O SISTEMA</span>
+                <span class="mono-label">SISTEMA AUTÔNOMO</span>
                 <h2 class="section-title">AI Execution OS</h2>
-                <p class="section-subtitle">Você descreve o objetivo em uma frase. O conselho de especialistas planeja, decide e executa. Feito para o celular.</p>
+                <p class="section-subtitle">Descreva o objetivo. O conselho planeja, decide e executa a operação completa.</p>
               </div>
 
               <div class="ai-council">
@@ -134,66 +153,66 @@
                 </div>
                 
                 <div class="council-grid">
-                  <!-- Expert 1 -->
-                  <div class="expert-panel">
+                  <div class="expert-panel premium-hover clip-reveal">
+                    <div class="card-glow"></div>
                     <div class="expert-header">
                       <span class="expert-dot"></span>
                       <h4 class="expert-name">Estratégia</h4>
                     </div>
-                    <p class="expert-desc">Visão e decisões de alto nível. Corta 80% das opções e aponta a única que move o número.</p>
+                    <p class="expert-desc">Visão de alto nível. Corta 80% das opções e executa o movimento vital.</p>
                   </div>
 
-                  <!-- Expert 2 -->
-                  <div class="expert-panel">
+                  <div class="expert-panel premium-hover clip-reveal">
+                    <div class="card-glow"></div>
                     <div class="expert-header">
                       <span class="expert-dot"></span>
                       <h4 class="expert-name">Marketing</h4>
                     </div>
-                    <p class="expert-desc">Aquisição, growth e posicionamento. Descobre onde está a demanda antes de gastar.</p>
+                    <p class="expert-desc">Aquisição e growth. Mapeia a demanda real antes da execução orçamentária.</p>
                   </div>
 
-                  <!-- Expert 3 -->
-                  <div class="expert-panel">
+                  <div class="expert-panel premium-hover clip-reveal">
+                    <div class="card-glow"></div>
                     <div class="expert-header">
                       <span class="expert-dot"></span>
                       <h4 class="expert-name">Produto</h4>
                     </div>
-                    <p class="expert-desc">Roadmap, features e métricas. Define o menor recorte que já pode ser vendido.</p>
+                    <p class="expert-desc">Arquitetura de roadmap. Define o menor recorte vendável da operação.</p>
                   </div>
 
-                  <!-- Expert 4 -->
-                  <div class="expert-panel">
+                  <div class="expert-panel premium-hover clip-reveal">
+                    <div class="card-glow"></div>
                     <div class="expert-header">
                       <span class="expert-dot"></span>
                       <h4 class="expert-name">Tecnologia</h4>
                     </div>
-                    <p class="expert-desc">Arquitetura, código e infra. Transforma o escopo em algo que roda em produção.</p>
+                    <p class="expert-desc">Infraestrutura e código. Transforma o escopo planejado em software de produção.</p>
                   </div>
 
-                  <!-- Expert 5 -->
-                  <div class="expert-panel">
+                  <div class="expert-panel premium-hover clip-reveal">
+                    <div class="card-glow"></div>
                     <div class="expert-header">
                       <span class="expert-dot"></span>
                       <h4 class="expert-name">Conteúdo</h4>
                     </div>
-                    <p class="expert-desc">Copy, storytelling e persuasão. Escreve o que faz a pessoa parar o dedo e clicar.</p>
+                    <p class="expert-desc">Copywriting persuasivo. Escreve a narrativa que converte atenção em clique.</p>
                   </div>
 
-                  <!-- Expert 6 -->
-                  <div class="expert-panel">
+                  <div class="expert-panel premium-hover clip-reveal">
+                    <div class="card-glow"></div>
                     <div class="expert-header">
                       <span class="expert-dot"></span>
                       <h4 class="expert-name">Design</h4>
                     </div>
-                    <p class="expert-desc">Experiência, interface e motion. Faz parecer inevitável em vez de improvisado.</p>
+                    <p class="expert-desc">UX/UI. Garante que a interface pareça inevitável, nunca improvisada.</p>
                   </div>
                 </div>
               </div>
 
               <div class="ai-exec-footer">
-                <a href="https://aiexec.com.br/executar" target="_blank" rel="noopener noreferrer" class="premium-button outline">
-                  <span>Executar Objetivo</span>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <a href="https://aiexec.com.br/executar" target="_blank" rel="noopener noreferrer" class="magnetic-btn premium-button outline">
+                  <span class="btn-text">Executar Objetivo</span>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M5 12h14M12 5l7 7-7 7"/>
                   </svg>
                 </a>
@@ -204,7 +223,7 @@
           
           <footer class="footer">
             <div class="footer-container">
-              <p>&copy; <span id="year"></span> Nicolas AI. Todos os direitos reservados.</p>
+              <p>&copy; <span id="year"></span> Nicolas AI. Engineered for scale.</p>
               <a href="https://www.instagram.com/nicollass.ai/" target="_blank" class="social-link">Instagram</a>
             </div>
           </footer>
