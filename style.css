@@ -554,21 +554,81 @@ body.loading {
 
 @media (max-width: 768px) {
   :root { --pad-x: 1.5rem; --pad-y: 4rem; --nav-h: 60px; }
+  
+  /* HEADER */
+  .main-nav { height: var(--nav-h); padding: 0 var(--pad-x); z-index: 1000; background: var(--c-deep); mix-blend-mode: normal; border-bottom: 1px solid var(--c-line); }
   .nav-links { display: none; }
+  .nav-brand { font-size: 1.25rem; }
+  .nav-progress-bar { display: none; }
   
-  .hero-ctas { flex-direction: column; }
-  .system-content { position: relative; width: 100%; height: auto; padding: 2rem var(--pad-x); background: var(--c-deep); }
+  /* ACT SECTIONS - Remove Pinning Heights */
+  .act-section { height: auto !important; position: static !important; }
+  .act-section.act-omega, .act-section.act-exec { height: auto !important; }
   
-  /* Fallback for videos on mobile to avoid strict pinned heights hiding content */
-  .act-section { height: auto; display: flex; flex-direction: column; }
-  .video-container { position: relative; height: 60vh; }
-  .scrub-video { object-fit: contain; } /* Keep video full frame visible */
+  /* HERO (Header -> Video -> Kicker -> Headline -> Desc -> CTAs) */
+  .act-opening { display: flex; flex-direction: column; background: var(--c-deep); }
+  .hero-content { display: contents; pointer-events: auto; }
   
-  .content-right { text-align: left; align-items: flex-start; }
-  .content-right .system-desc { text-align: left; }
+  .act-opening .video-container { 
+    position: relative !important; 
+    height: 75svh; 
+    width: 100vw; 
+    order: 1; 
+    margin-top: var(--nav-h); 
+    z-index: 1;
+  }
+  .act-opening .scrub-video { object-fit: cover; object-position: center; }
   
-  .evidence-grid { grid-template-columns: 1fr; gap: 3rem; }
+  .hero-kicker { order: 2; padding: 2rem var(--pad-x) 0; margin-bottom: 1rem; }
+  .hero-headline { 
+    order: 3; padding: 0 var(--pad-x); margin-bottom: 1.5rem; 
+    font-size: clamp(2.7rem, 13vw, 4rem); line-height: 0.95; max-width: 100%; word-break: break-word; 
+  }
+  .hero-subheadline { order: 4; padding: 0 var(--pad-x); margin-bottom: 2rem; font-size: 1rem; }
+  .hero-ctas { order: 5; padding: 0 var(--pad-x) 4rem; display: flex; flex-direction: column; gap: 1rem; width: 100%; }
+  .btn-primary, .btn-secondary { width: 100%; min-height: 52px; }
+  
+  /* MANIFESTO */
+  .manifesto-section { padding: var(--pad-y) var(--pad-x); align-items: flex-start; min-height: auto; display: block; }
+  .manifesto-container { width: 100%; }
+  .manifesto-text { font-size: clamp(2.4rem, 8vw, 3.3rem); line-height: 1.1; }
+  .manifesto-text .clip-line { border-bottom: 1px solid var(--c-line); padding-bottom: 1.5rem; margin-bottom: 1.5rem; }
+  .manifesto-text .clip-line:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  
+  /* EVIDENCE WALL */
+  .evidence-wall { padding-bottom: 2rem; }
+  .evidence-grid { grid-template-columns: 1fr; gap: 2rem; margin-bottom: 2rem; padding-bottom: 2rem; }
   .evidence-item { border-left: none; border-top: 1px solid var(--c-line); padding-left: 0; padding-top: 1.5rem; }
+  .evidence-number { font-size: 3rem; }
+  .closing-phrase { font-size: 1.5rem; }
+  
+  /* OMEGA & AI EXEC (Label -> Title -> Headline -> Desc -> Video -> CTA -> Flow) */
+  .act-omega, .act-exec { display: flex; flex-direction: column; padding-top: 0; background: var(--c-deep); }
+  .system-content { display: contents; pointer-events: auto; }
+  .system-body { display: contents; }
+  
+  .system-header { order: 1; padding: 4rem var(--pad-x) 0; margin-bottom: 0; text-align: left !important; }
+  .system-headline { order: 2; padding: 0 var(--pad-x); margin-top: 2rem; margin-bottom: 1rem; text-align: left !important; }
+  .system-desc { order: 3; padding: 0 var(--pad-x); margin-bottom: 2rem; text-align: left !important; }
+  
+  .act-omega .video-container, .act-exec .video-container { 
+    position: relative !important; 
+    width: 100vw; 
+    height: auto; 
+    aspect-ratio: 16 / 9; 
+    order: 4; 
+    background: #000;
+  }
+  .act-omega .scrub-video, .act-exec .scrub-video { object-fit: contain; }
+  
+  .omega-btn, .exec-btn { order: 5; margin: 2rem var(--pad-x); min-height: 52px; width: calc(100% - var(--pad-x)*2); display: flex; }
+  .exec-flow { order: 6; padding: 0 var(--pad-x); margin-bottom: 3rem; text-align: left !important; }
+  
+  /* LAB & ABOUT */
+  .lab-title { font-size: 2.2rem; margin-bottom: 2rem; }
+  .about-headline { font-size: 2.2rem; }
+  .final-headline { font-size: 1.25rem; margin-bottom: 2rem; }
+  .final-link { font-size: 1.3rem; min-height: 52px; }
   
   .main-footer { flex-direction: column; gap: 1rem; text-align: center; }
 }
