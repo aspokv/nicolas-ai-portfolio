@@ -41,6 +41,8 @@ html, body {
   /* clip (not hidden): hidden turns <body> into a scroll container, which breaks
      position:sticky for every descendant, including the sequence stages. */
   overflow-x: clip;
+  /* Vertical panning belongs to the browser. Nothing here intercepts touch. */
+  touch-action: pan-y;
 }
 
 ::selection {
@@ -189,12 +191,10 @@ body.loading {
   height: 100svh;
 }
 
-/* Scene contract. min-height (not height) so a scene taller than the viewport
-   keeps all of its content reachable. scroll-snap-align is a passive fallback:
-   the engine does the snapping, this only helps if scripting is unavailable. */
+/* Each act fills the viewport. No snap and no scroll corridor: the canvas is
+   scrubbed by the section's own transit through the viewport. */
 [data-scene] {
   min-height: 100svh;
-  scroll-snap-align: start;
 }
 
 .sequence-stage {

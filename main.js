@@ -3,581 +3,342 @@ import gsap from 'gsap'
 import Lenis from 'lenis'
 
 /* =========================================
-   NICOLAS AI — SCENE SNAP ENGINE
+   NICOLAS AI — SCROLL-LINKED CANVAS
 
-   The page is a sequence of full-viewport scenes. A gesture (wheel, swipe,
-   arrow / page key) does not drive pixels directly: it requests the next scene
-   and hands control to a single cinematic timeline that plays the act's frame
-   sequence, animates the DOM and moves the page, then settles exactly on the
-   next scene. Nothing moves without a gesture.
+   The canvas is a direct read-out of where the page currently is:
+
+       scroll position -> local progress of the section -> frame
+
+   There is no timeline between those steps, no playback clock, no gesture
+   capture and no input lock. Scroll moves, the canvas redraws on the next
+   animation frame. Scroll stops, the canvas stops.
    ========================================= */
 
 document.getElementById('year').textContent = new Date().getFullYear()
 
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+// Touch devices keep the browser's own scrolling. Nothing is intercepted there.
+const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window
 
 const SOURCE_W = 1440
 const SOURCE_H = 810
-const TRANSITION_DURATION = 2.0      // seconds, within the 1.8s - 2.2s target
-const SCROLL_EASE = 'power3.inOut'
-const FRAME_EASE = 'power2.inOut'
-const GESTURE_THRESHOLD = 55         // px of touch travel, within the 45 - 70 band
-const WHEEL_THRESHOLD = 18
-const EDGE_TOLERANCE = 4             // px slack when deciding "scene is at its edge"
-const PENDING_GESTURE_WINDOW = 400   // ms before the end within which a queued intent still counts
+const FRAME_COUNT = 120
+const PREFETCH_BEHIND = 12
+const PREFETCH_AHEAD = 16
+const MAX_PARALLEL_LOADS = 6
+
+const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v)
 
 /* =========================================
-   LENIS — programmatic scroller only
+   GLOBAL RENDER SCHEDULER
 
-   Input handling is disabled: the engine owns wheel and touch. Lenis remains
-   the mechanism that actually moves the page, driven from the timeline.
+   One rAF for every canvas on the page. Scroll listeners only record the
+   position and raise a flag; the frame callback does the drawing and then goes
+   quiet until something actually changes.
    ========================================= */
-const lenis = new Lenis({
-  smoothWheel: false,
-  syncTouch: false,
-  autoRaf: false,
-})
+let latestScrollY = window.scrollY
+let dirty = true
+let rafId = null
+const renderables = []
 
-gsap.ticker.add((time) => { lenis.raf(time * 1000) })
-gsap.ticker.lagSmoothing(0)
+function schedule() {
+  if (rafId === null) rafId = requestAnimationFrame(renderPass)
+}
 
-const scrollTo = (y) => lenis.scrollTo(y, { immediate: true, force: true })
+function markDirty() {
+  dirty = true
+  schedule()
+}
+
+function renderPass() {
+  rafId = null
+  if (!dirty) return          // nothing changed: the loop simply stops
+  dirty = false
+  for (let i = 0; i < renderables.length; i++) renderables[i].update(latestScrollY)
+}
+
+// Passive: the page scrolls natively, this only observes it.
+window.addEventListener('scroll', () => {
+  latestScrollY = window.scrollY
+  markDirty()
+}, { passive: true })
+
+/* =========================================
+   LENIS — desktop only, and only as a scroller
+
+   It never becomes a second source of progress: every frame is still derived
+   from window.scrollY, so the canvas tracks whatever is actually on screen.
+   ========================================= */
+let lenis = null
+if (!isCoarsePointer && !prefersReducedMotion) {
+  lenis = new Lenis({ duration: 0.9, smoothWheel: true, syncTouch: false })
+  lenis.on('scroll', () => {
+    latestScrollY = window.scrollY
+    markDirty()
+  })
+  gsap.ticker.add((t) => lenis.raf(t * 1000))
+  gsap.ticker.lagSmoothing(0)
+}
 
 /* =========================================
    FRAME SEQUENCE
-
-   Decodes a WebP frame sequence into memory and renders single frames on
-   demand. It never clears to black: if a requested frame is not decoded yet the
-   previously drawn frame stays on the canvas.
    ========================================= */
 class FrameSequence {
-  constructor(canvasId, basePath, frameCount) {
+  constructor(canvasId, sectionSelector, basePath) {
     this.canvas = document.getElementById(canvasId)
+    this.section = document.querySelector(sectionSelector)
     this.basePath = basePath
-    this.frameCount = frameCount
     this.frames = new Map()
     this.inflight = new Set()
+    this.queueHi = []
+    this.queueLo = []
+    this.active = 0
     this.lastDrawn = -1
-    this.ready = false
-    this.failed = false
-    this._readyWaiters = []
-
-    if (!this.canvas) { this.failed = true; return }
+    this.wantIndex = 0
+    this.start = 0
+    this.end = 1
+    if (!this.canvas || !this.section) return
     this.ctx = this.canvas.getContext('2d', { alpha: false })
+    this.measure()
+    renderables.push(this)
+  }
+
+  /* --- geometry: the section's own bounds, no invented scroll corridor --- */
+  measure() {
+    const rect = this.section.getBoundingClientRect()
+    const top = rect.top + window.scrollY
+    const vh = window.innerHeight
+    const maxScroll = Math.max(1, document.documentElement.scrollHeight - vh)
+    // The sequence plays across the section's transit through the viewport:
+    // progress 0 as it starts entering, 1 as it finishes leaving.
+    this.start = clamp(top - vh, 0, maxScroll)
+    this.end = clamp(top + rect.height, 1, maxScroll)
+    if (this.end <= this.start) this.end = this.start + 1
     this.sizeCanvas()
   }
 
-  // Backing store follows devicePixelRatio but is capped at the source
-  // resolution: beyond it there is nothing more to resolve, only memory to burn.
+  // Backing store follows devicePixelRatio, capped at the source resolution so
+  // phones never allocate more pixels than the frames actually contain.
   sizeCanvas() {
-    if (!this.canvas) return
     const rect = this.canvas.getBoundingClientRect()
-    const dpr = Math.min(window.devicePixelRatio || 1, 3)
-    const w = Math.max(1, Math.min(Math.round((rect.width || SOURCE_W) * dpr), SOURCE_W))
+    const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5)
+    const w = clamp(Math.round((rect.width || SOURCE_W) * dpr), 1, SOURCE_W)
     const h = Math.max(1, Math.round(w * (SOURCE_H / SOURCE_W)))
     if (this.canvas.width === w && this.canvas.height === h) return
     this.canvas.width = w
     this.canvas.height = h
-    // Resizing wipes the backing store — restore what was on screen.
-    if (this.lastDrawn >= 0) this.paint(this.frames.get(this.lastDrawn))
+    this.lastDrawn = -1        // backing store was wiped, force a repaint
   }
 
-  url(index) {
-    return `${this.basePath}/frame_${String(index + 1).padStart(4, '0')}.webp`
+  progressAt(scrollY) {
+    return clamp((scrollY - this.start) / (this.end - this.start), 0, 1)
   }
 
-  async load(index) {
-    if (this.frames.has(index) || this.inflight.has(index)) return
-    this.inflight.add(index)
+  /* --- loading: never blocks scrolling, never draws a stale answer --- */
+  url(i) {
+    return `${this.basePath}/frame_${String(i + 1).padStart(4, '0')}.webp`
+  }
+
+  request(i, low) {
+    if (i < 0 || i >= FRAME_COUNT) return
+    if (this.frames.has(i) || this.inflight.has(i)) return
+    this.inflight.add(i)
+    if (low) this.queueLo.push(i)
+    else this.queueHi.push(i)
+    this.pump()
+  }
+
+  pump() {
+    while (this.active < MAX_PARALLEL_LOADS && (this.queueHi.length || this.queueLo.length)) {
+      // Frames near where the visitor actually is always overtake the skeleton.
+      const i = this.queueHi.length ? this.queueHi.shift() : this.queueLo.shift()
+      this.active++
+      this.fetchFrame(i).finally(() => {
+        this.active--
+        this.pump()
+      })
+    }
+  }
+
+  async fetchFrame(i) {
     try {
-      const res = await fetch(this.url(index))
+      const res = await fetch(this.url(i))
       if (!res.ok) throw new Error('HTTP ' + res.status)
       const blob = await res.blob()
-      const bitmap = window.createImageBitmap
-        ? await createImageBitmap(blob)
-        : await this.decodeViaImage(blob)
-      this.frames.set(index, bitmap)
-      if (index === 0 && this.lastDrawn < 0) this.render(0)
-      this.checkReady()
+      const bmp = window.createImageBitmap ? await createImageBitmap(blob) : await decodeBlob(blob)
+      this.frames.set(i, bmp)
+      // A late arrival never replays itself. It only asks for a repaint when it
+      // is a better match for where the page is RIGHT NOW than what is already
+      // on the canvas, and the repaint re-reads the current scroll position. So
+      // a frame fetched for a position the visitor already left cannot appear,
+      // and once the exact frame is up, nothing repaints again.
+      const improves = this.lastDrawn < 0
+        || Math.abs(i - this.wantIndex) < Math.abs(this.lastDrawn - this.wantIndex)
+      if (improves) markDirty()
     } catch (e) {
-      // A single missing frame is survivable: playback simply holds the
-      // previous one. Only a completely empty sequence is fatal.
-      if (index === 0) this.failed = true
+      /* a missing frame degrades to its nearest loaded neighbour */
     } finally {
-      this.inflight.delete(index)
+      this.inflight.delete(i)
     }
   }
 
-  decodeViaImage(blob) {
-    return new Promise((resolve, reject) => {
-      const img = new Image()
-      const url = URL.createObjectURL(blob)
-      img.onload = () => { URL.revokeObjectURL(url); resolve(img) }
-      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')) }
-      img.src = url
-    })
-  }
-
-  // Sequential with small concurrency: keeps weaker devices from decoding
-  // three sequences at once.
-  async loadAll(concurrency = 4) {
-    let next = 0
-    const worker = async () => {
-      while (next < this.frameCount) await this.load(next++)
+  // Closest decoded frame to `i`, reported with its real index so the canvas
+  // always states which frame it is genuinely showing.
+  nearestIndex(i) {
+    if (this.frames.has(i)) return i
+    for (let d = 1; d < FRAME_COUNT; d++) {
+      if (this.frames.has(i - d)) return i - d
+      if (this.frames.has(i + d)) return i + d
     }
-    await Promise.all(Array.from({ length: concurrency }, worker))
-    this.checkReady()
+    return -1
   }
 
-  checkReady() {
-    if (this.ready) return
-    if (this.frames.size < this.frameCount) return
-    this.ready = true
-    this._readyWaiters.splice(0).forEach((fn) => fn())
+  prefetchAround(target) {
+    this.request(target)
+    for (let d = 1; d <= Math.max(PREFETCH_BEHIND, PREFETCH_AHEAD); d++) {
+      if (d <= PREFETCH_AHEAD) this.request(target + d)
+      if (d <= PREFETCH_BEHIND) this.request(target - d)
+    }
   }
 
-  // Resolves once the sequence can be played smoothly, or after `timeout` so a
-  // slow network degrades into a coarser playback instead of a dead gesture.
-  whenReady(timeout = 2500) {
-    if (this.ready || this.failed) return Promise.resolve()
-    return new Promise((resolve) => {
-      const done = () => { clearTimeout(timer); resolve() }
-      const timer = setTimeout(() => {
-        this._readyWaiters = this._readyWaiters.filter((f) => f !== done)
-        resolve()
-      }, timeout)
-      this._readyWaiters.push(done)
-    })
+  // A coarse skeleton across the whole sequence, fetched at low priority. It
+  // bounds how far the nearest available frame can be from the requested one
+  // while the dense window is still filling in.
+  prefetchSkeleton(stride, low) {
+    for (let i = 0; i < FRAME_COUNT; i += stride) this.request(i, low)
+    this.request(FRAME_COUNT - 1, low)
   }
 
-  paint(bitmap) {
-    if (!bitmap || !this.ctx) return
-    this.ctx.drawImage(bitmap, 0, 0, this.canvas.width, this.canvas.height)
-  }
+  /* --- draw: derived from the scroll position handed in, nothing else --- */
+  update(scrollY) {
+    if (!this.ctx) return
+    const p = this.progressAt(scrollY)
+    const exact = p * (FRAME_COUNT - 1)
+    const a = Math.floor(exact)
+    const bIndex = Math.min(FRAME_COUNT - 1, a + 1)
+    const mix = exact - a
 
-  // Returns true when the requested frame was actually painted.
-  render(index) {
-    const i = Math.max(0, Math.min(this.frameCount - 1, Math.round(index)))
-    if (i === this.lastDrawn) return true
-    const bitmap = this.frames.get(i)
-    if (!bitmap) return false          // hold the last valid frame, never blank
-    this.paint(bitmap)
-    this.lastDrawn = i
-    this.canvas.dataset.frame = i
+    this.wantIndex = a
+    this.prefetchAround(a)
+
+    const drawIndex = this.nearestIndex(a)
+    if (drawIndex < 0) return               // nothing decoded yet: leave as is
+
+    const w = this.canvas.width
+    const h = this.canvas.height
+    this.ctx.globalAlpha = 1
+    this.ctx.drawImage(this.frames.get(drawIndex), 0, 0, w, h)
+
+    // Spatial cross-fade towards the next frame. This is not an animation: the
+    // blend amount is a pure function of the current scroll position.
+    if (mix > 0.01 && bIndex !== a && this.frames.has(a) && this.frames.has(bIndex)) {
+      this.ctx.globalAlpha = mix
+      this.ctx.drawImage(this.frames.get(bIndex), 0, 0, w, h)
+      this.ctx.globalAlpha = 1
+    }
+
+    this.lastDrawn = drawIndex
+    this.canvas.dataset.frame = a           // frame the scroll position asks for
+    this.canvas.dataset.drawn = drawIndex   // frame actually painted
     if (!this.canvas.classList.contains('ready')) this.canvas.classList.add('ready')
-    return true
   }
 }
 
-/* =========================================
-   SCENE REGISTRY
-   ========================================= */
-const sequences = {
-  opening: new FrameSequence('canvas-opening', '/sequences/opening', 120),
-  omega: new FrameSequence('canvas-omega', '/sequences/omega', 120),
-  execution: new FrameSequence('canvas-exec', '/sequences/execution', 120),
+function decodeBlob(blob) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(blob)
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img) }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')) }
+    img.src = url
+  })
 }
 
-// Reveals the clipped editorial lines and lifts the body copy of a scene.
-const enterScene = (el, tl, at) => {
+/* =========================================
+   SEQUENCES
+   ========================================= */
+const sequences = [
+  new FrameSequence('canvas-opening', '.act-opening', '/sequences/opening'),
+  new FrameSequence('canvas-omega', '.act-omega', '/sequences/omega'),
+  new FrameSequence('canvas-exec', '.act-exec', '/sequences/execution'),
+].filter((s) => s.ctx)
+
+/* =========================================
+   EDITORIAL REVEALS
+
+   Content reveals itself as its section comes into view. One shot per element,
+   independent of the canvas, and it never gates scrolling.
+   ========================================= */
+const revealTargets = document.querySelectorAll('[data-reveal]')
+
+const revealSection = (el) => {
   const lines = el.querySelectorAll('.clip-line span')
-  if (lines.length) {
-    tl.to(lines, { y: '0%', duration: 0.9, stagger: 0.08, ease: 'power3.out' }, at)
-  }
+  if (lines.length) gsap.to(lines, { y: '0%', duration: 0.9, stagger: 0.08, ease: 'power3.out' })
   const blocks = el.querySelectorAll('[data-reveal]')
-  if (blocks.length) {
-    tl.to(blocks, { opacity: 1, y: 0, duration: 0.9, stagger: 0.07, ease: 'power3.out' }, at)
-  }
+  if (blocks.length) gsap.to(blocks, { opacity: 1, y: 0, duration: 0.9, stagger: 0.07, ease: 'power3.out' })
 }
 
-const SCENE_DEFS = [
-  { sel: '.act-opening', id: 'opening', sequence: 'opening' },
-  { sel: '.manifesto-section', id: 'manifesto', sequence: null },
-  { sel: '.evidence-wall', id: 'evidence', sequence: null },
-  { sel: '.act-omega', id: 'omega', sequence: 'omega' },
-  { sel: '.act-exec', id: 'execution', sequence: 'execution' },
-  { sel: '.lab-section', id: 'lab', sequence: null },
-  { sel: '.about-section', id: 'about', sequence: null },
-]
+const SECTIONS = ['.act-opening', '.manifesto-section', '.evidence-wall', '.act-omega', '.act-exec', '.lab-section', '.about-section']
+  .map((sel) => document.querySelector(sel))
+  .filter(Boolean)
 
-const scenes = SCENE_DEFS.map((def) => {
-  const element = document.querySelector(def.sel)
-  if (element) {
-    element.dataset.scene = def.id
-    element.querySelectorAll('[data-reveal]').forEach((n) => gsap.set(n, { opacity: 0, y: 26 }))
-  }
-  return {
-    element,
-    id: def.id,
-    sequence: def.sequence ? sequences[def.sequence] : null,
-    forwardTransition: (tl, at) => element && enterScene(element, tl, at),
-    backwardTransition: (tl, at) => element && enterScene(element, tl, at),
-  }
-}).filter((s) => s.element)
+SECTIONS.forEach((el, i) => { el.dataset.scene = String(i) })
+
+if (prefersReducedMotion) {
+  gsap.set('.clip-line span', { y: '0%' })
+  gsap.set(revealTargets, { opacity: 1, y: 0 })
+} else {
+  gsap.set(revealTargets, { opacity: 0, y: 24 })
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return
+      io.unobserve(entry.target)
+      revealSection(entry.target)
+    })
+  }, { rootMargin: '0px 0px -10% 0px', threshold: 0.05 })
+  SECTIONS.forEach((el) => io.observe(el))
+}
 
 /* =========================================
-   SCENE SNAP ENGINE
+   VIEWPORT CHANGES
    ========================================= */
-const STATE = {
-  IDLE: 'IDLE',
-  PREPARING: 'PREPARING',
-  TRANSITIONING_FORWARD: 'TRANSITIONING_FORWARD',
-  TRANSITIONING_BACKWARD: 'TRANSITIONING_BACKWARD',
-  SETTLING: 'SETTLING',
-  LOCKED_ERROR: 'LOCKED_ERROR',
-}
-
-class SceneSnapEngine {
-  constructor(sceneList) {
-    this.scenes = sceneList
-    this.state = STATE.IDLE
-    this.currentSceneIndex = 0
-    this.targetSceneIndex = 0
-    this.isTransitioning = false
-    this.direction = 0
-    this.activeTimeline = null
-    this.currentSequence = null
-    this.loadedSequences = new Set()
-    this.pendingGesture = null
-    this.revealed = new Set()
-  }
-
-  sceneTop(i) {
-    const el = this.scenes[i].element
-    return Math.round(el.getBoundingClientRect().top + window.scrollY)
-  }
-
-  // How far the page can travel inside a scene taller than the viewport.
-  sceneOverflow(i) {
-    const el = this.scenes[i].element
-    const isLast = i === this.scenes.length - 1
-    // The tail scene owns everything below it (the footer) as its own overflow.
-    const extent = isLast
-      ? document.documentElement.scrollHeight - this.sceneTop(i)
-      : el.getBoundingClientRect().height
-    return Math.max(0, Math.round(extent - window.innerHeight))
-  }
-
-  atEdge(dir) {
-    const top = this.sceneTop(this.currentSceneIndex)
-    const overflow = this.sceneOverflow(this.currentSceneIndex)
-    if (overflow <= 0) return true
-    const offset = window.scrollY - top
-    return dir > 0 ? offset >= overflow - EDGE_TOLERANCE : offset <= EDGE_TOLERANCE
-  }
-
-  // Which sequence plays: the act you are leaving when going forward, the act
-  // you are entering when going back. Each sequence therefore plays exactly
-  // once per direction and always rests on frame 0.
-  sequenceFor(from, to, dir) {
-    return dir > 0 ? this.scenes[from].sequence : this.scenes[to].sequence
-  }
-
-  request(dir) {
-    if (this.state === STATE.LOCKED_ERROR) return
-    if (this.isTransitioning) {
-      // A burst fired at the start of a transition is spam and is discarded.
-      // Only an intent expressed near the end is kept, so a deliberate second
-      // gesture chains smoothly while ten stray wheel events cannot skip ahead.
-      this.pendingGesture = { dir, at: performance.now() }
-      return
-    }
-    // Long scenes scroll internally first and only snap at their edges.
-    if (!this.atEdge(dir)) { this.stepWithinScene(dir); return }
-
-    const target = this.currentSceneIndex + dir
-    if (target < 0 || target >= this.scenes.length) return
-    this.transition(target, dir)
-  }
-
-  stepWithinScene(dir) {
-    const top = this.sceneTop(this.currentSceneIndex)
-    const overflow = this.sceneOverflow(this.currentSceneIndex)
-    const next = gsap.utils.clamp(top, top + overflow, window.scrollY + dir * window.innerHeight * 0.7)
-    this.isTransitioning = true
-    this.state = STATE.SETTLING
-    const proxy = { y: window.scrollY }
-    this.activeTimeline = gsap.timeline({
-      onComplete: () => {
-        this.activeTimeline = null
-        this.isTransitioning = false
-        this.state = STATE.IDLE
-        this.drain()
-      },
-    }).to(proxy, {
-      y: next, duration: 0.7, ease: SCROLL_EASE, onUpdate: () => scrollTo(proxy.y),
-    })
-  }
-
-  async transition(target, dir) {
-    const from = this.currentSceneIndex
-    this.isTransitioning = true
-    this.direction = dir
-    this.targetSceneIndex = target
-    this.state = STATE.PREPARING
-
-    const seq = this.sequenceFor(from, target, dir)
-    this.currentSequence = seq
-
-    if (seq && !seq.failed) {
-      // Never start a timeline on an undecoded sequence.
-      await seq.whenReady()
-    }
-
-    this.state = dir > 0 ? STATE.TRANSITIONING_FORWARD : STATE.TRANSITIONING_BACKWARD
-
-    const destY = this.snapTargetFor(target, dir)
-    const scrollProxy = { y: window.scrollY }
-    const playhead = seq ? { frame: dir > 0 ? 0 : seq.frameCount - 1 } : null
-
-    const tl = gsap.timeline({
-      onComplete: () => this.settle(target, destY),
-    })
-    this.activeTimeline = tl
-
-    tl.to(scrollProxy, {
-      y: destY,
-      duration: TRANSITION_DURATION,
-      ease: SCROLL_EASE,
-      onUpdate: () => scrollTo(scrollProxy.y),
-    }, 0)
-
-    if (seq && playhead) {
-      seq.render(playhead.frame)
-      tl.to(playhead, {
-        frame: dir > 0 ? seq.frameCount - 1 : 0,
-        duration: TRANSITION_DURATION,
-        ease: FRAME_EASE,
-        onUpdate: () => seq.render(playhead.frame),
-      }, 0)
-    }
-
-    // Editorial motion for the scene being entered, once.
-    const entering = this.scenes[target]
-    if (!this.revealed.has(target)) {
-      this.revealed.add(target)
-      const fn = dir > 0 ? entering.forwardTransition : entering.backwardTransition
-      fn(tl, TRANSITION_DURATION * 0.35)
-    }
-  }
-
-  // Where the page must come to rest. Entering a scene backwards lands on its
-  // bottom edge when the scene is taller than the viewport, so the reverse move
-  // mirrors the forward one.
-  snapTargetFor(index, dir) {
-    const top = this.sceneTop(index)
-    const overflow = this.sceneOverflow(index)
-    return dir < 0 ? top + overflow : top
-  }
-
-  settle(target, destY) {
-    this.state = STATE.SETTLING
-    scrollTo(destY)                    // exact snap, no sub-pixel drift
-    this.currentSceneIndex = target
-    this.currentSequence = null
-    this.activeTimeline = null
-    this.direction = 0
-    this.isTransitioning = false
-    this.state = STATE.IDLE
-    this.syncProgress()
-    this.drain()
-  }
-
-  drain() {
-    const queued = this.pendingGesture
-    this.pendingGesture = null
-    if (!queued) return
-    if (performance.now() - queued.at > PENDING_GESTURE_WINDOW) return   // stale: discard
-    this.request(queued.dir)
-  }
-
-  syncProgress() {
-    const denom = Math.max(1, this.scenes.length - 1)
-    gsap.set('.progress-fill', { width: `${(this.currentSceneIndex / denom) * 100}%` })
-  }
-
-  // Deep links and refreshes land on a real scene instead of a random offset.
-  jumpTo(index) {
-    const i = gsap.utils.clamp(0, this.scenes.length - 1, index)
-    this.currentSceneIndex = i
-    this.targetSceneIndex = i
-    if (!this.revealed.has(i)) {
-      this.revealed.add(i)
-      const tl = gsap.timeline()
-      this.scenes[i].forwardTransition(tl, 0)
-    }
-    scrollTo(this.sceneTop(i))
-    this.syncProgress()
-  }
-
-  refresh() {
-    Object.values(sequences).forEach((s) => s.sizeCanvas())
-    if (!this.isTransitioning) scrollTo(this.sceneTop(this.currentSceneIndex))
-  }
-}
-
-const engine = new SceneSnapEngine(scenes)
-
-/* =========================================
-   GESTURE INPUT
-
-   Navigation is owned by the engine, but nothing that makes the page usable is
-   blocked: clicks, links, buttons, form fields and anything inside a
-   [data-native-scroll] region keep their native behaviour.
-   ========================================= */
-const INTERACTIVE = 'a,button,input,textarea,select,label,[contenteditable],[data-native-scroll]'
-const isExempt = (target) => target instanceof Element && target.closest(INTERACTIVE)
-const isNativeScroll = (target) => target instanceof Element && target.closest('[data-native-scroll]')
-
-let gateOpen = false
-const gate = (fn) => (e) => { if (gateOpen) fn(e) }
-
-/* --- wheel --- */
-let wheelCooldown = 0
-window.addEventListener('wheel', gate((e) => {
-  if (isNativeScroll(e.target)) return
-  e.preventDefault()
-  if (Math.abs(e.deltaY) < WHEEL_THRESHOLD) return
-  const now = performance.now()
-  // Inertial trackpads emit long tails; one gesture must stay one scene.
-  if (now - wheelCooldown < 120) return
-  wheelCooldown = now
-  engine.request(e.deltaY > 0 ? 1 : -1)
-}), { passive: false })
-
-/* --- keyboard --- */
-const KEY_FORWARD = new Set(['ArrowDown', 'PageDown', 'KeyS', 'Space'])
-const KEY_BACKWARD = new Set(['ArrowUp', 'PageUp', 'KeyW'])
-window.addEventListener('keydown', gate((e) => {
-  if (isExempt(e.target)) return
-  if (e.repeat) return                            // held keys must not queue up
-  if (KEY_FORWARD.has(e.code)) { e.preventDefault(); engine.request(1) }
-  else if (KEY_BACKWARD.has(e.code)) { e.preventDefault(); engine.request(-1) }
-}))
-
-/* --- touch --- */
-let touchStartY = null
-let touchFired = false
-window.addEventListener('touchstart', gate((e) => {
-  if (isNativeScroll(e.target)) { touchStartY = null; return }
-  touchStartY = e.touches[0].clientY
-  touchFired = false
-}), { passive: true })
-
-window.addEventListener('touchmove', gate((e) => {
-  if (touchStartY === null) return
-  if (e.cancelable) e.preventDefault()
-  if (touchFired) return
-  const delta = touchStartY - e.touches[0].clientY
-  if (Math.abs(delta) < GESTURE_THRESHOLD) return
-  touchFired = true                                // exactly one scene per swipe
-  engine.request(delta > 0 ? 1 : -1)
-}), { passive: false })
-
-const endTouch = () => { touchStartY = null; touchFired = false }
-window.addEventListener('touchend', endTouch, { passive: true })
-window.addEventListener('touchcancel', endTouch, { passive: true })
-
-/* --- viewport changes --- */
 let resizeTimer = null
+const remeasure = () => {
+  sequences.forEach((s) => s.measure())
+  latestScrollY = window.scrollY
+  markDirty()
+}
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer)
-  resizeTimer = setTimeout(() => engine.refresh(), 180)
-})
-window.addEventListener('orientationchange', () => {
-  setTimeout(() => engine.refresh(), 300)
-})
-
-/* --- in-page anchors --- */
-document.querySelectorAll('a[href^="#"]').forEach((link) => {
-  link.addEventListener('click', (e) => {
-    const id = link.getAttribute('href').slice(1)
-    if (!id) return
-    const el = document.getElementById(id)
-    if (!el) return
-    const idx = scenes.findIndex((s) => s.element === el || s.element.contains(el))
-    if (idx < 0) return
-    e.preventDefault()
-    engine.jumpTo(idx)
-  })
-})
+  resizeTimer = setTimeout(remeasure, 150)
+}, { passive: true })
+window.addEventListener('orientationchange', () => setTimeout(remeasure, 250), { passive: true })
+window.addEventListener('load', remeasure, { passive: true })
 
 /* =========================================
    BOOT
 
-   The opening sequence is decoded before any gesture is accepted, so the very
-   first transition is already smooth. The remaining acts stream in behind it,
-   one at a time, in the order the visitor will reach them.
+   Scrolling is available from the first paint: no sequence is ever waited on.
+   The first frame of every act is fetched straight away so nothing is blank,
+   and the acts ahead are warmed while the visitor is still on the one before.
    ========================================= */
-const sceneFromHash = () => {
-  const id = location.hash.slice(1)
-  if (!id) return 0
-  const el = document.getElementById(id)
-  if (!el) return 0
-  const idx = scenes.findIndex((s) => s.element === el || s.element.contains(el))
-  return idx < 0 ? 0 : idx
+document.body.classList.remove('loading')
+
+sequences.forEach((s) => s.request(0))
+if (sequences[0]) {
+  // Skeleton first: with every other frame decoded, the nearest available frame
+  // is never more than one away from the one the scroll asks for, so the canvas
+  // tracks the finger from the first seconds instead of waiting on the network.
+  sequences[0].prefetchSkeleton(2, false)
+  sequences[0].prefetchAround(0)
 }
+remeasure()
 
-const revealEverything = () => {
-  scenes.forEach((s, i) => {
-    engine.revealed.add(i)
-    const tl = gsap.timeline()
-    s.forwardTransition(tl, 0)
-    tl.progress(1)
-  })
+if (!prefersReducedMotion) {
+  const warm = () => sequences.slice(1).forEach((s, i) => setTimeout(() => {
+    s.prefetchSkeleton(4, true)
+    s.prefetchAround(0)
+  }, i * 500))
+  if ('requestIdleCallback' in window) requestIdleCallback(warm, { timeout: 2500 })
+  else setTimeout(warm, 1200)
 }
-
-async function boot() {
-  if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
-
-  if (prefersReducedMotion) {
-    // No extended sequence: every scene is shown in its final state and the
-    // page scrolls normally, with all content present and reachable.
-    document.body.classList.remove('loading')
-    document.body.classList.add('reduced-motion')
-    revealEverything()
-    await Promise.all([
-      sequences.opening.load(0),
-      sequences.omega.load(0),
-      sequences.execution.load(0),
-    ])
-    sequences.opening.render(0)
-    sequences.omega.render(0)
-    sequences.execution.render(0)
-    const idx = sceneFromHash()
-    if (idx > 0) engine.jumpTo(idx)
-    return
-  }
-
-  await sequences.opening.loadAll()
-  sequences.opening.render(0)
-  engine.loadedSequences.add('opening')
-
-  document.body.classList.remove('loading')
-
-  const intro = gsap.timeline()
-  engine.revealed.add(0)
-  scenes[0].forwardTransition(intro, 0)
-
-  const startIndex = sceneFromHash()
-  if (startIndex > 0) engine.jumpTo(startIndex)
-  else scrollTo(0)
-
-  gateOpen = true
-  engine.syncProgress()
-
-  // Background streaming, sequentially, in visit order.
-  await sequences.omega.loadAll(3)
-  engine.loadedSequences.add('omega')
-  await sequences.execution.loadAll(3)
-  engine.loadedSequences.add('execution')
-}
-
-boot().catch((err) => {
-  // The page must remain readable and scrollable whatever happens to the canvases.
-  console.error('Scene engine failed to start:', err)
-  engine.state = STATE.LOCKED_ERROR
-  document.body.classList.remove('loading')
-  document.body.classList.add('reduced-motion')
-  revealEverything()
-})
