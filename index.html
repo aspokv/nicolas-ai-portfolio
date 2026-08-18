@@ -1,237 +1,299 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NICOLAS AI | Premium Execution</title>
-    
-    <!-- Premium Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    
-    <link rel="stylesheet" href="/style.css" />
-  </head>
-  <body>
-    <!-- Global Noise -->
-    <div class="noise-overlay"></div>
-    
-    <!-- Cursor Glow Tracking -->
-    <div class="cursor-glow"></div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nicolas AI | Building in Public, Measuring Everything.</title>
+  <meta name="description" content="Eu não coleciono ferramentas. Eu construo sistemas que executam. Experimentos mensuráveis e produtos próprios para quem quer aprender mais rápido e construir melhor." />
+  <link rel="canonical" href="https://nicolas.aiexec.com.br/" />
+  
+  <meta property="og:title" content="Nicolas AI | Systems & Experiments" />
+  <meta property="og:description" content="Construindo na interseção entre inteligência artificial, engenharia, design e execução." />
+  <meta property="og:url" content="https://nicolas.aiexec.com.br/" />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#030303" />
+  
+  <!-- Preconnect Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Preload First Video Metadata -->
+  <link rel="preload" href="/videos/01-opening-1080p.mp4" as="video" type="video/mp4" />
+  
+  <link rel="stylesheet" href="/style.css" />
+  
+  <!-- Structured Data JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "Nicolas AI",
+    "url": "https://nicolas.aiexec.com.br/",
+    "sameAs": [
+      "https://www.instagram.com/nicollass.ai/"
+    ],
+    "jobTitle": "Builder and Researcher",
+    "description": "Constrói, testa e mede sistemas de IA. Engenharia aplicada e execução acima de promessa."
+  }
+  </script>
+</head>
+<body class="loading">
+  <!-- Subtle Grain Texture -->
+  <div class="noise-texture"></div>
 
-    <!-- Preloader -->
-    <div class="preloader">
-      <div class="preloader-text">
-        <span class="char">N</span><span class="char">I</span><span class="char">C</span><span class="char">O</span><span class="char">L</span><span class="char">A</span><span class="char">S</span>
-        <span class="char">.</span><span class="char">A</span><span class="char">I</span>
+  <!-- Minimal Navigation -->
+  <header class="main-nav">
+    <div class="nav-brand">Nicolas AI</div>
+    <div class="nav-progress-bar"><div class="progress-fill"></div></div>
+    <nav class="nav-links">
+      <a href="#systems">Systems</a>
+      <a href="#lab">Lab</a>
+      <a href="#about">About</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ACT 01 - OPENING HERO -->
+    <section class="act-section act-opening" id="opening">
+      
+      <div class="video-container">
+        <!-- Scrub Video -->
+        <video id="vid-opening" class="scrub-video" muted playsinline preload="metadata">
+          <source src="/videos/01-opening-1080p.mp4" type="video/mp4" />
+        </video>
       </div>
-    </div>
 
-    <div class="smooth-wrapper">
-      <div class="smooth-content">
+      <div class="hero-content">
+        <div class="hero-kicker mono-tracking">NICOLAS AI — AI SYSTEMS / EXPERIMENTS / PRODUCTS</div>
         
-        <main>
-          <!-- AWWWARDS STYLE HERO -->
-          <section class="hero" id="hero">
-            <header class="hero-nav">
-              <div class="nav-brand">N.AI</div>
-              <div class="nav-status">
-                <span class="status-dot"></span>
-                <span>Systems Online</span>
-              </div>
-            </header>
+        <h1 class="hero-headline">
+          <div class="clip-line"><span>EU NÃO COLECIONO FERRAMENTAS.</span></div>
+          <div class="clip-line"><span>EU CONSTRUO SISTEMAS QUE <em class="serif-italic">EXECUTAM.</em></span></div>
+        </h1>
+        
+        <p class="hero-subheadline">
+          Experimentos mensuráveis, produtos próprios e sistemas práticos para quem quer aprender mais rápido, construir melhor e sair do hype para a execução.
+        </p>
 
-            <div class="hero-container">
-              
-              <div class="hero-grid">
-                <div class="hero-left">
-                  <h1 class="hero-title">
-                    <span class="line-mask"><span class="line-inner">NICOLAS</span></span>
-                    <span class="line-mask"><span class="line-inner italic">AI</span></span>
-                  </h1>
-                  
-                  <div class="hero-bio">
-                    <span class="bio-line-mask"><span class="bio-line-inner">Architecting Autonomous Systems.</span></span>
-                    <span class="bio-line-mask"><span class="bio-line-inner">300+ AI Execution OS & Prompts.</span></span>
-                    <span class="bio-line-mask"><span class="bio-line-inner">Learn Faster. Build Smarter.</span></span>
-                  </div>
-                </div>
-
-                <div class="hero-right">
-                  <div class="hero-image-wrapper">
-                    <img src="/profile.jpg" alt="Nicolas AI Profile" class="hero-image" />
-                    <div class="image-reveal-mask"></div>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-            
-            <div class="scroll-indicator">
-              <div class="scroll-line"></div>
-              <span class="scroll-text">DESCUBRA O ECOSSISTEMA</span>
-            </div>
-          </section>
-
-          <!-- OMEGA VAULT SECTION (Fixed Scroll) -->
-          <section class="omega-vault" id="omega-vault">
-            <div class="ov-header">
-              <h2 class="section-title">Omega Vault</h2>
-              <p class="section-subtitle">O cofre definitivo de ativos prontos para produção. Pague uma vez, acesse para sempre.</p>
-            </div>
-            
-            <div class="ov-pin-wrapper">
-              <div class="ov-scroll-container">
-                
-                <div class="ov-card premium-hover">
-                  <div class="card-glow"></div>
-                  <div class="ov-card-inner">
-                    <span class="ov-card-number">01</span>
-                    <h3 class="ov-card-title">Claude Skills</h3>
-                    <p class="ov-card-desc">Arquivos injetáveis no Claude. Ele ganha uma habilidade especializada instantaneamente.</p>
-                  </div>
-                </div>
-
-                <div class="ov-card premium-hover">
-                  <div class="card-glow"></div>
-                  <div class="ov-card-inner">
-                    <span class="ov-card-number">02</span>
-                    <h3 class="ov-card-title">MCPs</h3>
-                    <p class="ov-card-desc">Conectores vitais para seus sistemas locais. A IA deixa de falar e passa a operar.</p>
-                  </div>
-                </div>
-
-                <div class="ov-card premium-hover">
-                  <div class="card-glow"></div>
-                  <div class="ov-card-inner">
-                    <span class="ov-card-number">03</span>
-                    <h3 class="ov-card-title">Prompts</h3>
-                    <p class="ov-card-desc">Engenharia reversa em tarefas complexas. Um prompt longo que entrega o trabalho final.</p>
-                  </div>
-                </div>
-
-                <div class="ov-card premium-hover">
-                  <div class="card-glow"></div>
-                  <div class="ov-card-inner">
-                    <span class="ov-card-number">04</span>
-                    <h3 class="ov-card-title">Workflows</h3>
-                    <p class="ov-card-desc">Agentes orquestrados. Eles sabem a ordem de execução, o escopo e quando entregar.</p>
-                  </div>
-                </div>
-
-                <!-- Final Card CTA -->
-                <div class="ov-card ov-card-cta">
-                  <div class="ov-card-inner">
-                    <a href="https://omegavault.com.br/" target="_blank" rel="noopener noreferrer" class="magnetic-btn premium-button">
-                      <span class="btn-text">Abrir o Cofre</span>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M5 12h14M12 5l7 7-7 7"/>
-                      </svg>
-                    </a>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          </section>
-
-          <!-- AI EXECUTION OS SECTION -->
-          <section class="ai-exec" id="ai-exec">
-            <div class="ai-exec-container">
-              
-              <div class="ai-exec-header">
-                <span class="mono-label">SISTEMA AUTÔNOMO</span>
-                <h2 class="section-title">AI Execution OS</h2>
-                <p class="section-subtitle">Descreva o objetivo. O conselho planeja, decide e executa a operação completa.</p>
-              </div>
-
-              <div class="ai-council">
-                <div class="council-label">
-                  <span class="mono-label">O Conselho</span>
-                  <div class="council-line"></div>
-                </div>
-                
-                <div class="council-grid">
-                  <div class="expert-panel premium-hover clip-reveal">
-                    <div class="card-glow"></div>
-                    <div class="expert-header">
-                      <span class="expert-dot"></span>
-                      <h4 class="expert-name">Estratégia</h4>
-                    </div>
-                    <p class="expert-desc">Visão de alto nível. Corta 80% das opções e executa o movimento vital.</p>
-                  </div>
-
-                  <div class="expert-panel premium-hover clip-reveal">
-                    <div class="card-glow"></div>
-                    <div class="expert-header">
-                      <span class="expert-dot"></span>
-                      <h4 class="expert-name">Marketing</h4>
-                    </div>
-                    <p class="expert-desc">Aquisição e growth. Mapeia a demanda real antes da execução orçamentária.</p>
-                  </div>
-
-                  <div class="expert-panel premium-hover clip-reveal">
-                    <div class="card-glow"></div>
-                    <div class="expert-header">
-                      <span class="expert-dot"></span>
-                      <h4 class="expert-name">Produto</h4>
-                    </div>
-                    <p class="expert-desc">Arquitetura de roadmap. Define o menor recorte vendável da operação.</p>
-                  </div>
-
-                  <div class="expert-panel premium-hover clip-reveal">
-                    <div class="card-glow"></div>
-                    <div class="expert-header">
-                      <span class="expert-dot"></span>
-                      <h4 class="expert-name">Tecnologia</h4>
-                    </div>
-                    <p class="expert-desc">Infraestrutura e código. Transforma o escopo planejado em software de produção.</p>
-                  </div>
-
-                  <div class="expert-panel premium-hover clip-reveal">
-                    <div class="card-glow"></div>
-                    <div class="expert-header">
-                      <span class="expert-dot"></span>
-                      <h4 class="expert-name">Conteúdo</h4>
-                    </div>
-                    <p class="expert-desc">Copywriting persuasivo. Escreve a narrativa que converte atenção em clique.</p>
-                  </div>
-
-                  <div class="expert-panel premium-hover clip-reveal">
-                    <div class="card-glow"></div>
-                    <div class="expert-header">
-                      <span class="expert-dot"></span>
-                      <h4 class="expert-name">Design</h4>
-                    </div>
-                    <p class="expert-desc">UX/UI. Garante que a interface pareça inevitável, nunca improvisada.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div class="ai-exec-footer">
-                <a href="https://aiexec.com.br/executar" target="_blank" rel="noopener noreferrer" class="magnetic-btn premium-button outline">
-                  <span class="btn-text">Executar Objetivo</span>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                  </svg>
-                </a>
-              </div>
-
-            </div>
-          </section>
-          
-          <footer class="footer">
-            <div class="footer-container">
-              <p>&copy; <span id="year"></span> Nicolas AI. Engineered for scale.</p>
-              <a href="https://www.instagram.com/nicollass.ai/" target="_blank" class="social-link">Instagram</a>
-            </div>
-          </footer>
-        </main>
-
+        <div class="hero-ctas">
+          <a href="#systems" class="btn-primary">Explorar os Sistemas</a>
+          <a href="#lab" class="btn-secondary">Entrar no Laboratório</a>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <script type="module" src="/main.js"></script>
-  </body>
+    <!-- MANIFESTO -->
+    <section class="manifesto-section">
+      <div class="manifesto-container">
+        <h2 class="manifesto-text">
+          <div class="clip-line"><span>TODO MUNDO REPETE. <em class="serif-italic">EU TESTO.</em></span></div>
+          <div class="clip-line"><span>TODO MUNDO MOSTRA A FERRAMENTA.</span></div>
+          <div class="clip-line"><span>EU MOSTRO O QUE ELA REALMENTE FAZ.</span></div>
+          <div class="clip-line"><span>RELEASE NOTE É MARKETING.</span></div>
+          <div class="clip-line"><span><em class="serif-italic">EVIDÊNCIA</em> É O QUE IMPORTA.</span></div>
+        </h2>
+      </div>
+    </section>
+
+    <!-- EVIDENCE WALL -->
+    <section class="evidence-wall">
+      <div class="evidence-grid">
+        <article class="evidence-item">
+          <div class="evidence-number">17% &rarr; 100%</div>
+          <div class="evidence-label mono-tracking">Ativação de Skill</div>
+          <div class="evidence-desc">Após refatoração de prompt/descrição.</div>
+        </article>
+        
+        <article class="evidence-item">
+          <div class="evidence-number">900k</div>
+          <div class="evidence-label mono-tracking">Embaralhamentos</div>
+          <div class="evidence-desc">Testes executados para expor um viés.</div>
+        </article>
+
+        <article class="evidence-item">
+          <div class="evidence-number">15.218</div>
+          <div class="evidence-label mono-tracking">Tokens Removidos</div>
+          <div class="evidence-desc">Entre gerações de tokenizadores da OpenAI.</div>
+        </article>
+
+        <article class="evidence-item">
+          <div class="evidence-number">19%</div>
+          <div class="evidence-label mono-tracking">Dano Estrutural</div>
+          <div class="evidence-desc">Dano concentrado que um QR Code suportou.</div>
+        </article>
+
+        <article class="evidence-item">
+          <div class="evidence-number">1.488</div>
+          <div class="evidence-label mono-tracking">Caracteres Unicode</div>
+          <div class="evidence-desc">Capazes de se passar visualmente por ASCII.</div>
+        </article>
+      </div>
+
+      <div class="evidence-footer">
+        <p class="closing-phrase serif-italic">Eu não publico o que parece interessante. Publico o que consegui provar.</p>
+      </div>
+    </section>
+
+    <div id="systems"></div>
+
+    <!-- ACT 02 - OMEGA VAULT -->
+    <section class="act-section act-omega">
+      
+      <div class="video-container">
+        <!-- Scrub Video -->
+        <video id="vid-omega" class="scrub-video" muted playsinline preload="none">
+          <source src="/videos/02-omega-vault-1080p.mp4" type="video/mp4" />
+        </video>
+      </div>
+
+      <div class="system-content content-left omega-theme">
+        <div class="system-header">
+          <span class="system-label mono-tracking">SYSTEM / 01</span>
+          <h2 class="system-title serif-italic">OMEGA VAULT</h2>
+          <span class="system-signature mono-tracking">ELITE ASSETS. LIMITLESS POSSIBILITIES.</span>
+        </div>
+
+        <div class="system-body">
+          <h3 class="system-headline">PARE DE CONSTRUIR DO ZERO.</h3>
+          <p class="system-desc">
+            Uma biblioteca premium de Claude Skills, MCPs, prompts, agentes, workflows, automações, templates e sistemas prontos para copiar, adaptar e executar.
+          </p>
+          <a href="https://omegavault.com.br/" target="_blank" rel="noopener noreferrer" class="btn-primary omega-btn">Abrir o Cofre</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACT 03 - AI EXECUTION OS -->
+    <section class="act-section act-exec">
+      
+      <div class="video-container">
+        <!-- Scrub Video -->
+        <video id="vid-exec" class="scrub-video" muted playsinline preload="none">
+          <source src="/videos/03-ai-execution-1080p.mp4" type="video/mp4" />
+        </video>
+      </div>
+
+      <div class="system-content content-right exec-theme">
+        <div class="system-header">
+          <span class="system-label mono-tracking">SYSTEM / 02</span>
+          <h2 class="system-title serif-italic">AI EXECUTION OS</h2>
+        </div>
+
+        <div class="system-body">
+          <h3 class="system-headline">VOCÊ NÃO PRECISA APRENDER TODA IA. PRECISA SABER ONDE EXECUTAR.</h3>
+          <p class="system-desc">
+            Você descreve o objetivo. O sistema transforma intenção em uma missão estruturada com estratégia, especialistas, ferramentas, prompts e um fluxo claro de execução.
+          </p>
+          
+          <div class="exec-flow mono-tracking">
+            OBJECTIVE &rarr; ANALYSIS &rarr; SPECIALISTS &rarr; TOOLS &rarr; WORKFLOW &rarr; EXECUTION
+          </div>
+
+          <a href="https://aiexec.com.br/executar" target="_blank" rel="noopener noreferrer" class="btn-primary exec-btn">Executar um Objetivo</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- THE LAB / EXPERIMENTS -->
+    <section class="lab-section" id="lab">
+      <header class="lab-header">
+        <h2 class="lab-title">THE LAB &mdash; TESTES, FALHAS E DESCOBERTAS.</h2>
+      </header>
+
+      <div class="lab-list">
+        <a href="https://www.instagram.com/p/DcBDo3blmpF/" target="_blank" rel="noopener noreferrer" class="lab-link">
+          <span class="lab-num mono-tracking">01</span>
+          <div class="lab-info">
+            <span class="lab-cat mono-tracking">Arquitetura</span>
+            <span class="lab-name">MCP schema</span>
+          </div>
+          <span class="lab-micro">Extensão de capacidades locais via Model Context Protocol.</span>
+        </a>
+
+        <a href="https://www.instagram.com/p/Db-ePs5Fgby/" target="_blank" rel="noopener noreferrer" class="lab-link">
+          <span class="lab-num mono-tracking">02</span>
+          <div class="lab-info">
+            <span class="lab-cat mono-tracking">API</span>
+            <span class="lab-name">Skill API</span>
+          </div>
+          <span class="lab-micro">Injeção estruturada de contexto comportamental.</span>
+        </a>
+
+        <a href="https://www.instagram.com/p/DbnSSCWlnds/" target="_blank" rel="noopener noreferrer" class="lab-link">
+          <span class="lab-num mono-tracking">03</span>
+          <div class="lab-info">
+            <span class="lab-cat mono-tracking">Comportamento</span>
+            <span class="lab-name">900 mil embaralhamentos</span>
+          </div>
+          <span class="lab-micro">Mapeamento empírico de vieses probabilísticos no LLM.</span>
+        </a>
+
+        <a href="https://www.instagram.com/p/Dbkt7rqFum1/" target="_blank" rel="noopener noreferrer" class="lab-link">
+          <span class="lab-num mono-tracking">04</span>
+          <div class="lab-info">
+            <span class="lab-cat mono-tracking">Segurança</span>
+            <span class="lab-name">Phishing com Unicode</span>
+          </div>
+          <span class="lab-micro">Análise de homógrafos na fronteira visual dos modelos.</span>
+        </a>
+
+        <a href="https://www.instagram.com/p/DbdACx6FiNf/" target="_blank" rel="noopener noreferrer" class="lab-link">
+          <span class="lab-num mono-tracking">05</span>
+          <div class="lab-info">
+            <span class="lab-cat mono-tracking">Fundamentos</span>
+            <span class="lab-name">Diferença de tokenizadores</span>
+          </div>
+          <span class="lab-micro">Comparativo estrutural de consumo entre O200K e cl100k_base.</span>
+        </a>
+      </div>
+
+      <div class="lab-footer">
+        <a href="https://www.instagram.com/nicollass.ai/" target="_blank" rel="noopener noreferrer" class="btn-secondary outline-btn">Ver Todos os Experimentos</a>
+      </div>
+    </section>
+
+    <!-- ABOUT & FINAL CTA -->
+    <section class="about-section" id="about">
+      
+      <div class="about-grid">
+        <div class="about-text">
+          <h2 class="about-headline">
+            <div class="clip-line"><span>BUILDING IN PUBLIC.</span></div>
+            <div class="clip-line"><span><em class="serif-italic">MEASURING EVERYTHING.</em></span></div>
+          </h2>
+          <p class="about-bio">
+            Nicolas constrói na interseção entre inteligência artificial, engenharia, design e execução. Pesquisa o comportamento real dos modelos, transforma descobertas em sistemas e compartilha o que consegue provar.
+          </p>
+        </div>
+
+        <div class="final-cta-area">
+          <h2 class="final-headline">
+            O FUTURO NÃO PRECISA DE MAIS PROMESSAS. <em class="serif-italic">PRECISA DE EXECUÇÃO.</em>
+          </h2>
+          
+          <div class="final-links">
+            <a href="https://omegavault.com.br/" target="_blank" rel="noopener noreferrer" class="final-link">Entrar no Omega Vault <span class="arrow">&rarr;</span></a>
+            <a href="https://aiexec.com.br/executar" target="_blank" rel="noopener noreferrer" class="final-link">Abrir o AI Execution OS <span class="arrow">&rarr;</span></a>
+            <a href="https://www.instagram.com/nicollass.ai/" target="_blank" rel="noopener noreferrer" class="final-link">Acompanhar @nicollass.ai <span class="arrow">&rarr;</span></a>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="main-footer">
+    <div class="footer-copy mono-tracking">NICOLAS AI &copy; <span id="year">2026</span></div>
+    <div class="footer-links">
+      <a href="https://omegavault.com.br/" target="_blank" rel="noopener noreferrer">Omega Vault</a>
+      <a href="https://aiexec.com.br/executar" target="_blank" rel="noopener noreferrer">AI Exec</a>
+      <a href="https://www.instagram.com/nicollass.ai/" target="_blank" rel="noopener noreferrer">Instagram</a>
+    </div>
+  </footer>
+
+  <script type="module" src="/main.js"></script>
+</body>
 </html>
