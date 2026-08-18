@@ -135,17 +135,21 @@ mm.add("(max-width: 768px)", () => {
   setupMobileScrub('vid-omega', '.act-omega .video-container');
   setupMobileScrub('vid-exec', '.act-exec .video-container');
 
-  // --- MOBILE REVEALS (Faster, Normal Flow) ---
+  // --- MOBILE REVEALS (SCFO Flow) ---
   const tlHero = gsap.timeline({ onComplete: () => { document.body.classList.remove('loading'); }});
   tlHero.to('.hero-headline span', { y: '0%', duration: 0.8, stagger: 0.05, ease: 'power3.out', delay: 0.1 });
   
-  gsap.to('.manifesto-text span', {
-    y: '0%', duration: 0.8, stagger: 0.05, ease: 'power3.out',
-    scrollTrigger: { trigger: '.manifesto-section', start: 'top 85%' }
+  // Manifesto: Each phrase independent
+  gsap.utils.toArray('.manifesto-text .clip-line').forEach((line) => {
+    gsap.to(line.querySelector('span'), {
+      y: '0%', duration: 0.8, ease: 'power3.out',
+      scrollTrigger: { trigger: line, start: 'top 85%' }
+    });
   });
   
+  // Evidence Wall: Subtle opacity and transform
   gsap.from('.evidence-item', {
-    y: 20, opacity: 0, duration: 0.6, stagger: 0.1, ease: 'power2.out',
+    y: 30, opacity: 0, duration: 0.8, stagger: 0.15, ease: 'power2.out',
     scrollTrigger: { trigger: '.evidence-grid', start: 'top 85%' }
   });
   
@@ -154,13 +158,12 @@ mm.add("(max-width: 768px)", () => {
     scrollTrigger: { trigger: '.about-section', start: 'top 85%' }
   });
 
-  gsap.from('.act-omega .system-content > *', {
-    y: 20, opacity: 0, duration: 0.8, stagger: 0.05, ease: 'power3.out',
-    scrollTrigger: { trigger: '.act-omega .system-content', start: 'top 85%' }
-  });
-
-  gsap.from('.act-exec .system-content > *', {
-    y: 20, opacity: 0, duration: 0.8, stagger: 0.05, ease: 'power3.out',
-    scrollTrigger: { trigger: '.act-exec .system-content', start: 'top 85%' }
+  // Systems: Sequential rhythm
+  const systems = ['.act-omega', '.act-exec'];
+  systems.forEach(sys => {
+    gsap.from(`${sys} .system-content > *`, {
+      y: 30, opacity: 0, duration: 0.8, stagger: 0.15, ease: 'power3.out',
+      scrollTrigger: { trigger: `${sys} .system-content`, start: 'top 85%' }
+    });
   });
 });

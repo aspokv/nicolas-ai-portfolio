@@ -589,10 +589,10 @@ body.loading {
   .btn-primary, .btn-secondary { width: 100%; min-height: 52px; }
   
   /* MANIFESTO */
-  .manifesto-section { padding: var(--pad-y) var(--pad-x); align-items: flex-start; min-height: auto; display: block; }
+  .manifesto-section { padding: 15vh var(--pad-x) 15vh; align-items: flex-start; min-height: auto; display: block; }
   .manifesto-container { width: 100%; }
-  .manifesto-text { font-size: clamp(2.4rem, 8vw, 3.3rem); line-height: 1.1; }
-  .manifesto-text .clip-line { border-bottom: 1px solid var(--c-line); padding-bottom: 1.5rem; margin-bottom: 1.5rem; }
+  .manifesto-text { display: flex; flex-direction: column; gap: 25vh; font-size: clamp(2.3rem, 8vw, 3.2rem); line-height: 1.1; }
+  .manifesto-text .clip-line { border-bottom: 1px solid var(--c-line); padding-bottom: 1.5rem; margin-bottom: 0; }
   .manifesto-text .clip-line:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
   
   /* EVIDENCE WALL */
