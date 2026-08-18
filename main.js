@@ -40,6 +40,7 @@ class CanvasFrameSequence {
     this.canvas = document.getElementById(canvasId);
     this.fallback = document.getElementById(fallbackId);
     this.wrapper = document.querySelector(wrapperSelector);
+    this.stage = this.canvas ? this.canvas.closest('.sequence-stage') : null;
     this.config = config;
     this.ctx = this.canvas ? this.canvas.getContext('2d', { alpha: false, willReadFrequently: false }) : null;
     this.frameCount = config.frameCount;
@@ -60,7 +61,7 @@ class CanvasFrameSequence {
     this.hasFailed = false;
     this.maxCache = 30; // Number of frames to keep in memory
 
-    if (!this.canvas || !this.wrapper || !this.ctx) return;
+    if (!this.canvas || !this.wrapper || !this.stage || !this.ctx) return;
     
     if (prefersReducedMotion) {
       this.handleFallback();
@@ -80,10 +81,20 @@ class CanvasFrameSequence {
       });
 
     // ScrollTrigger to drive progress
+    // The stage is position:sticky inside the wrapper. The scrub range must match
+    // exactly the window in which the stage stays pinned, otherwise the canvas
+    // scrolls out of view while the frame sequence is still advancing.
+    const stickyOffset = () => {
+      const t = parseFloat(getComputedStyle(this.stage).top);
+      return Number.isFinite(t) ? t : 0;
+    };
+
     ScrollTrigger.create({
       trigger: this.wrapper,
-      start: config.scrollStart || (isMobile ? "top 80%" : "top top"),
-      end: config.scrollEnd || (isMobile ? "bottom 20%" : "bottom bottom"),
+      // clamp() keeps the range inside the document so the first act still starts
+      // at frame 0 when its sticky offset would push start above scroll 0.
+      start: () => `clamp(top top+=${stickyOffset()})`,
+      end: () => `clamp(bottom top+=${stickyOffset() + this.stage.offsetHeight})`,
       scrub: true,
       invalidateOnRefresh: true,
       onUpdate: (self) => this.setProgress(self.progress)
@@ -210,7 +221,7 @@ class CanvasFrameSequence {
 }
 
 const sequences = {
-  opening: { basePath: '/sequences/opening', frameCount: 120, pattern: 'frame_%04d.webp', scrollStart: 'top top' },
+  opening: { basePath: '/sequences/opening', frameCount: 120, pattern: 'frame_%04d.webp' },
   omega: { basePath: '/sequences/omega', frameCount: 120, pattern: 'frame_%04d.webp' },
   execution: { basePath: '/sequences/execution', frameCount: 120, pattern: 'frame_%04d.webp' }
 };

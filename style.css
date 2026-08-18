@@ -38,7 +38,9 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;
-  overflow-x: hidden;
+  /* clip (not hidden): hidden turns <body> into a scroll container, which breaks
+     position:sticky for every descendant, including the sequence stages. */
+  overflow-x: clip;
 }
 
 ::selection {
@@ -184,6 +186,12 @@ body.loading {
 
 .act-section.act-omega, .act-section.act-exec {
   height: 250vh;
+}
+
+/* The wrapper must span the full scroll length of the act, otherwise the sticky
+   stage has zero travel and the canvas scrolls out of view during the scrub. */
+.scrub-wrapper {
+  height: 100%;
 }
 
 .sequence-stage {
