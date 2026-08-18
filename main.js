@@ -55,8 +55,7 @@ class CanvasFrameSequence {
     this.bitmaps = new Map();
     this.loading = new Set();
     this.currentIndex = -1;
-    this.targetFrame = 0;
-    this.displayedFrame = 0;
+    this.targetIndex = 0;
     this.rafId = null;
     this.hasFailed = false;
     this.maxCache = 30; // Number of frames to keep in memory
@@ -83,8 +82,8 @@ class CanvasFrameSequence {
     // ScrollTrigger to drive progress
     ScrollTrigger.create({
       trigger: this.wrapper,
-      start: "top top",
-      end: "bottom bottom",
+      start: config.scrollStart || (isMobile ? "top 80%" : "top top"),
+      end: config.scrollEnd || (isMobile ? "bottom 20%" : "bottom bottom"),
       scrub: true,
       invalidateOnRefresh: true,
       onUpdate: (self) => this.setProgress(self.progress)
@@ -110,7 +109,7 @@ class CanvasFrameSequence {
     if (this.loading.has(index)) return null;
     
     // Backpressure: allow max 6 concurrent requests, skip if too far
-    if (this.loading.size >= 6 && Math.abs(index - this.targetFrame) > 4) return null;
+    if (this.loading.size >= 6 && Math.abs(index - this.targetIndex) > 4) return null;
 
     this.loading.add(index);
 
@@ -135,21 +134,22 @@ class CanvasFrameSequence {
       if (this.bitmaps.size > this.maxCache) {
         let keys = Array.from(this.bitmaps.keys());
         // Sort descending by distance from target index (furthest first)
-        keys.sort((a, b) => Math.abs(b - this.targetFrame) - Math.abs(a - this.targetFrame));
+        keys.sort((a, b) => Math.abs(b - this.targetIndex) - Math.abs(a - this.targetIndex));
         for (let key of keys) {
           if (this.bitmaps.size <= this.maxCache) break;
           // Never delete target, current, or immediately requested frames
-          const currentRounded = Math.round(this.displayedFrame);
-          if (key === index || key === currentRounded || key === this.targetFrame) continue;
+          if (key === index || key === this.currentIndex || key === this.targetIndex) continue;
           let old = this.bitmaps.get(key);
           if (old && old.close) old.close();
           this.bitmaps.delete(key);
         }
       }
       
-      // Start update loop if we're waiting for this frame
-      if (!this.rafId && Math.abs(this.targetFrame - this.displayedFrame) > 0.1) {
-        this.rafId = requestAnimationFrame(() => this.updateLoop());
+      // If this frame is the current target and hasn't been drawn, draw it!
+      if (index === this.targetIndex) {
+        if (!this.rafId) {
+          this.rafId = requestAnimationFrame(() => this.updateLoop());
+        }
       }
       
       return img;
@@ -159,40 +159,22 @@ class CanvasFrameSequence {
     }
   }
 
-  setProgress(rawProgress) {
+  setProgress(progress) {
     if (this.hasFailed) return;
+    const clamped = gsap.utils.clamp(0, 1, progress);
+    this.targetIndex = Math.round(clamped * (this.frameCount - 1));
+    this.preloadNeighbors(this.targetIndex);
     
-    const normalizedProgress = gsap.utils.clamp(0, 1, (rawProgress - 0.08) / 0.84);
-    this.targetFrame = Math.round(normalizedProgress * (this.frameCount - 1));
-    this.preloadNeighbors(this.targetFrame);
-    
-    if (!this.rafId) {
-      this.rafId = requestAnimationFrame(() => this.updateLoop());
-    }
+    if (this.rafId) return;
+    this.rafId = requestAnimationFrame(() => this.updateLoop());
   }
 
   updateLoop() {
-    if (this.hasFailed) {
-      this.rafId = null;
-      return;
-    }
+    this.rafId = null;
+    if (this.currentIndex === this.targetIndex) return;
 
-    this.displayedFrame += (this.targetFrame - this.displayedFrame) * 0.16;
-    const roundedFrame = Math.round(this.displayedFrame);
-
-    if (this.bitmaps.has(roundedFrame)) {
-      this.drawFrame(roundedFrame);
-    }
-
-    if (Math.abs(this.targetFrame - this.displayedFrame) >= 0.1) {
-      this.rafId = requestAnimationFrame(() => this.updateLoop());
-    } else {
-      // Snap exactly to target when difference is very small
-      this.displayedFrame = this.targetFrame;
-      if (this.bitmaps.has(this.targetFrame)) {
-        this.drawFrame(this.targetFrame);
-      }
-      this.rafId = null;
+    if (this.bitmaps.has(this.targetIndex)) {
+      this.drawFrame(this.targetIndex);
     }
   }
 
@@ -206,8 +188,6 @@ class CanvasFrameSequence {
 
   drawFrame(index) {
     if (this.hasFailed) return;
-    if (index === this.currentIndex) return;
-    
     const img = this.bitmaps.get(index);
     if (!img) return;
 
