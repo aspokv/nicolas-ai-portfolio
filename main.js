@@ -34,20 +34,19 @@ lenis.on('scroll', (e) => {
    VIDEO SCRUB ENGINE
    ========================================= */
 function setupVideoScrub(videoId, sectionSelector) {
-  if (prefersReducedMotion) return; // Skip scrub on reduced motion
-
   const video = document.getElementById(videoId);
   const section = document.querySelector(sectionSelector);
   
   if (!video || !section) return;
 
-  // Wait for metadata to know the duration
-  video.addEventListener('loadedmetadata', () => {
-    // Fade video in once ready
+  function initScrub() {
     video.classList.add('ready');
     
-    // Safety margin to prevent video from looping or breaking at the exact end
-    const safeDuration = video.duration - 0.1;
+    if (prefersReducedMotion) return; // Fallback handles layout, just skip GSAP tween
+
+    // Calculate safe duration to avoid edge cases
+    let safeDuration = video.duration - 0.05;
+    if (safeDuration < 0) safeDuration = 0;
     
     gsap.to(video, {
       currentTime: safeDuration,
@@ -56,16 +55,23 @@ function setupVideoScrub(videoId, sectionSelector) {
         trigger: section,
         start: "top top",
         end: "bottom bottom",
-        scrub: 0.5, // Smooth scrubbing
+        scrub: 0.5,
       }
     });
-  }, { once: true });
+    
+    ScrollTrigger.refresh();
+  }
 
-  // In case metadata is already loaded (browser cache)
-  if (video.readyState >= 1) {
-    video.dispatchEvent(new Event('loadedmetadata'));
+  // Force preload attribute just in case HTML hasn't parsed it early enough
+  video.setAttribute('preload', 'auto');
+
+  // Check if metadata is already available
+  if (video.readyState >= 1) { // HAVE_METADATA
+    initScrub();
   } else {
-    video.load(); // Force load metadata if needed
+    // Wait for metadata
+    video.addEventListener('loadedmetadata', initScrub, { once: true });
+    video.load();
   }
 }
 
@@ -75,19 +81,24 @@ setupVideoScrub('vid-omega', '.act-omega');
 setupVideoScrub('vid-exec', '.act-exec');
 
 /* =========================================
-   TYPOGRAPHY REVEALS
+   TYPOGRAPHY REVEALS & FALLBACKS
    ========================================= */
 function initTextReveals() {
+  // Always remove loading state to show content
+  document.body.classList.remove('loading');
+
   if (prefersReducedMotion) {
-    document.body.classList.remove('loading');
-    return;
+    // FALLBACK: Reset all GSAP hidden states to fully visible instantly
+    gsap.set('.clip-line span', { y: '0%' });
+    gsap.set('.evidence-item', { y: 0, opacity: 1 });
+    gsap.set('.about-headline span', { y: '0%' });
+    gsap.set('.act-omega .system-content > *', { y: 0, opacity: 1 });
+    gsap.set('.act-exec .system-content > *', { y: 0, opacity: 1 });
+    return; // Exit here, no animations
   }
 
   // Hero Reveal
-  const tlHero = gsap.timeline({
-    onComplete: () => { document.body.classList.remove('loading'); }
-  });
-
+  const tlHero = gsap.timeline();
   tlHero.to('.hero-headline span', {
     y: '0%',
     duration: 1.2,
@@ -132,14 +143,7 @@ function initTextReveals() {
       start: 'top 75%'
     }
   });
-}
 
-initTextReveals();
-
-/* =========================================
-   SYSTEM CONTENT FADES (MOBILE & DESKTOP)
-   ========================================= */
-if (!prefersReducedMotion) {
   const isMobile = window.innerWidth <= 768;
   
   // Omega Vault Content Parallax/Fade
@@ -172,3 +176,21 @@ if (!prefersReducedMotion) {
     }
   });
 }
+
+/* =========================================
+   INITIALIZATION & REFRESH LOGIC
+   ========================================= */
+// 1. Wait for fonts before calculating heights
+document.fonts.ready.then(() => {
+  initTextReveals();
+  ScrollTrigger.refresh();
+});
+
+// 2. Refresh on resize
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    ScrollTrigger.refresh();
+  }, 250);
+});
