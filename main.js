@@ -31,86 +31,193 @@ lenis.on('scroll', (e) => {
 })
 
 /* =========================================
-   UNIFIED SCROLL-DRIVEN VIDEO SCRUB
+   DETERMINISTIC CANVAS FRAME SEQUENCE
    ========================================= */
 const isMobile = window.innerWidth <= 768;
 
-function setupUnifiedScrub(videoId, wrapperSelector) {
-  if (prefersReducedMotion) {
-    return;
-  }
+class CanvasFrameSequence {
+  constructor(canvasId, fallbackId, config, wrapperSelector) {
+    this.canvas = document.getElementById(canvasId);
+    this.fallback = document.getElementById(fallbackId);
+    this.wrapper = document.querySelector(wrapperSelector);
+    this.config = config;
+    this.ctx = this.canvas ? this.canvas.getContext('2d', { alpha: false, willReadFrequently: false }) : null;
+    this.frameCount = config.frameCount;
+    this.basePath = config.basePath;
+    this.pattern = config.pattern;
+    
+    // Internal resolution is fixed to the frame size for CSS object-fit to handle responsiveness
+    if (this.canvas) {
+      this.canvas.width = 1440;
+      this.canvas.height = 810;
+    }
 
-  const video = document.getElementById(videoId);
-  const wrapper = document.querySelector(wrapperSelector);
-  
-  if (!video || !wrapper) {
-    return;
-  }
+    this.bitmaps = new Map();
+    this.loading = new Set();
+    this.currentIndex = -1;
+    this.targetIndex = 0;
+    this.rafId = null;
+    this.hasFailed = false;
+    this.maxCache = 30; // Number of frames to keep in memory
 
-  // JS enforced attributes
-  video.muted = true;
-  video.playsInline = true;
-  video.disableRemotePlayback = true;
+    if (!this.canvas || !this.wrapper || !this.ctx) return;
+    
+    if (prefersReducedMotion) {
+      this.handleFallback();
+      return;
+    }
 
-  // Unlock video on mobile to allow programmatic seeking
-  if (isMobile) {
-    const unlockVideo = () => {
-      const current = video.currentTime;
-      video.play().then(() => {
-        video.pause();
-        video.currentTime = current;
-      }).catch(() => {});
-      window.removeEventListener('touchstart', unlockVideo);
-      window.removeEventListener('pointerdown', unlockVideo);
-    };
-    window.addEventListener('touchstart', unlockVideo, { once: true });
-    window.addEventListener('pointerdown', unlockVideo, { once: true });
-  }
+    // Initialize display state
+    if (this.fallback) this.fallback.style.display = 'none';
+    this.canvas.style.display = 'block';
 
-  let rafId = null;
-  const initScrub = () => {
-    video.classList.add('ready');
-    const duration = video.duration;
+    // Load first frame immediately
+    this.loadFrame(0)
+      .then(() => this.drawFrame(0))
+      .catch((e) => {
+        console.error(`Failed to load first frame for ${canvasId}:`, e);
+        this.handleFallback();
+      });
 
+    // ScrollTrigger to drive progress
     ScrollTrigger.create({
-      trigger: wrapper,
-      start: isMobile ? "top 80%" : "top top",
-      end: isMobile ? "bottom 20%" : "bottom bottom",
-      onUpdate: (self) => {
-        const progress = self.progress;
-        const targetTime = gsap.utils.clamp(
-          0,
-          duration - 0.05,
-          progress * (duration - 0.05)
-        );
-
-        if (rafId) return;
-        rafId = requestAnimationFrame(() => {
-          if (Number.isFinite(targetTime)) {
-            video.currentTime = targetTime;
-          }
-          rafId = null;
-        });
-      }
+      trigger: this.wrapper,
+      start: config.scrollStart || (isMobile ? "top 80%" : "top top"),
+      end: config.scrollEnd || (isMobile ? "bottom 20%" : "bottom bottom"),
+      scrub: true,
+      invalidateOnRefresh: true,
+      onUpdate: (self) => this.setProgress(self.progress)
     });
-    ScrollTrigger.refresh();
-  };
-  
-  if (video.readyState >= 1 && Number.isFinite(video.duration)) {
-    initScrub();
-  } else {
-    video.addEventListener('loadedmetadata', initScrub, { once: true });
-    video.addEventListener('loadeddata', () => {
-      if (!video.classList.contains('ready')) initScrub();
-    }, { once: true });
-    video.load();
+  }
+
+  handleFallback() {
+    this.hasFailed = true;
+    if (this.canvas) this.canvas.style.display = 'none';
+    if (this.fallback) {
+      this.fallback.style.display = 'block';
+      this.fallback.play().catch(()=>{});
+    }
+  }
+
+  getFrameUrl(index) {
+    const padded = String(index + 1).padStart(4, '0');
+    return `${this.basePath}/${this.pattern.replace('%04d', padded)}`;
+  }
+
+  async loadFrame(index) {
+    if (this.bitmaps.has(index)) return this.bitmaps.get(index);
+    if (this.loading.has(index)) return null;
+    
+    // Backpressure: allow max 6 concurrent requests, skip if too far
+    if (this.loading.size >= 6 && Math.abs(index - this.targetIndex) > 4) return null;
+
+    this.loading.add(index);
+
+    try {
+      const response = await fetch(this.getFrameUrl(index));
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      const blob = await response.blob();
+      
+      let img;
+      if (window.createImageBitmap) {
+        img = await createImageBitmap(blob);
+      } else {
+        img = new Image();
+        img.src = URL.createObjectURL(blob);
+        await new Promise((r, j) => { img.onload = r; img.onerror = j; });
+      }
+      
+      this.bitmaps.set(index, img);
+      this.loading.delete(index);
+      
+      // Cleanup cache if it exceeds maxCache
+      if (this.bitmaps.size > this.maxCache) {
+        let keys = Array.from(this.bitmaps.keys());
+        // Sort descending by distance from target index (furthest first)
+        keys.sort((a, b) => Math.abs(b - this.targetIndex) - Math.abs(a - this.targetIndex));
+        for (let key of keys) {
+          if (this.bitmaps.size <= this.maxCache) break;
+          // Never delete target, current, or immediately requested frames
+          if (key === index || key === this.currentIndex || key === this.targetIndex) continue;
+          let old = this.bitmaps.get(key);
+          if (old && old.close) old.close();
+          this.bitmaps.delete(key);
+        }
+      }
+      
+      // If this frame is the current target and hasn't been drawn, draw it!
+      if (index === this.targetIndex) {
+        if (!this.rafId) {
+          this.rafId = requestAnimationFrame(() => this.updateLoop());
+        }
+      }
+      
+      return img;
+    } catch (e) {
+      this.loading.delete(index);
+      return null;
+    }
+  }
+
+  setProgress(progress) {
+    if (this.hasFailed) return;
+    const clamped = gsap.utils.clamp(0, 1, progress);
+    this.targetIndex = Math.round(clamped * (this.frameCount - 1));
+    this.preloadNeighbors(this.targetIndex);
+    
+    if (this.rafId) return;
+    this.rafId = requestAnimationFrame(() => this.updateLoop());
+  }
+
+  updateLoop() {
+    this.rafId = null;
+    if (this.currentIndex === this.targetIndex) return;
+
+    if (this.bitmaps.has(this.targetIndex)) {
+      this.drawFrame(this.targetIndex);
+    }
+  }
+
+  preloadNeighbors(index) {
+    this.loadFrame(index); // prioritize target
+    for (let i = 1; i <= 6; i++) {
+      if (index + i < this.frameCount) this.loadFrame(index + i);
+      if (index - i >= 0) this.loadFrame(index - i);
+    }
+  }
+
+  drawFrame(index) {
+    if (this.hasFailed) return;
+    const img = this.bitmaps.get(index);
+    if (!img) return;
+
+    this.currentIndex = index;
+    
+    // Draw
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
+    
+    // Show canvas gracefully
+    if (!this.canvas.classList.contains('ready')) {
+      this.canvas.classList.add('ready');
+    }
+
+    // Dataset exposed for testing automation
+    this.canvas.dataset.currentFrame = index;
+    this.canvas.dataset.frameCount = this.frameCount;
+    this.canvas.dataset.progress = index / (this.frameCount - 1);
   }
 }
 
-// Initialize scrubs with their respective wrappers (on mobile, we added scrub-wrapper)
-setupUnifiedScrub('vid-opening', isMobile ? '.act-opening .scrub-wrapper' : '.act-opening');
-setupUnifiedScrub('vid-omega', isMobile ? '.act-omega .scrub-wrapper' : '.act-omega');
-setupUnifiedScrub('vid-exec', isMobile ? '.act-exec .scrub-wrapper' : '.act-exec');
+const sequences = {
+  opening: { basePath: '/sequences/opening', frameCount: 120, pattern: 'frame_%04d.webp', scrollStart: 'top top' },
+  omega: { basePath: '/sequences/omega', frameCount: 120, pattern: 'frame_%04d.webp' },
+  execution: { basePath: '/sequences/execution', frameCount: 120, pattern: 'frame_%04d.webp' }
+};
+
+new CanvasFrameSequence('canvas-opening', 'vid-opening', sequences.opening, isMobile ? '.act-opening .scrub-wrapper' : '.act-opening');
+new CanvasFrameSequence('canvas-omega', 'vid-omega', sequences.omega, isMobile ? '.act-omega .scrub-wrapper' : '.act-omega');
+new CanvasFrameSequence('canvas-exec', 'vid-exec', sequences.execution, isMobile ? '.act-exec .scrub-wrapper' : '.act-exec');
 
 /* =========================================
    GSAP MATCHMEDIA (DESKTOP VS MOBILE REVEALS)
