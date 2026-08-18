@@ -179,11 +179,12 @@ body.loading {
 .act-section {
   position: relative;
   width: 100%;
-  height: 200vh; /* Scroll length */
 }
 
-.act-section.act-omega, .act-section.act-exec {
-  height: 250vh;
+.scrub-wrapper {
+  position: relative;
+  width: 100%;
+  height: 300vh;
 }
 
 .sequence-stage {
@@ -191,7 +192,7 @@ body.loading {
   top: 0;
   left: 0;
   width: 100vw;
-  height: 100vh;
+  height: 100svh;
   overflow: hidden;
   background-color: var(--c-carbon);
   z-index: 0;
@@ -582,15 +583,15 @@ body.loading {
   
   .act-opening .scrub-wrapper { 
     position: relative; 
-    height: 150svh; 
+    height: 340svh; 
     width: 100vw; 
     order: 1; 
     z-index: 1;
   }
   .act-opening .sequence-stage { 
     position: sticky !important; 
-    top: var(--nav-h);
-    height: 75svh; 
+    top: 0;
+    height: 100svh; 
     width: 100vw; 
   }
   .act-opening .sequence-canvas, .act-opening .fallback-video { object-fit: cover; object-position: center; }
@@ -629,19 +630,18 @@ body.loading {
   
   .act-omega .scrub-wrapper, .act-exec .scrub-wrapper {
     position: relative;
-    height: 150svh;
+    height: 340svh;
     width: 100vw;
     order: 4;
   }
   .act-omega .sequence-stage, .act-exec .sequence-stage { 
     position: sticky !important; 
-    top: 20vh;
+    top: 0;
     width: 100vw; 
-    height: auto; 
-    aspect-ratio: 16 / 9; 
+    height: 100svh; 
     background: #000;
   }
-  .act-omega .sequence-canvas, .act-omega .fallback-video, .act-exec .sequence-canvas, .act-exec .fallback-video { object-fit: contain; }
+  .act-omega .sequence-canvas, .act-omega .fallback-video, .act-exec .sequence-canvas, .act-exec .fallback-video { object-fit: cover; }
   
   .omega-btn, .exec-btn { order: 5; margin: 2rem var(--pad-x); min-height: 52px; width: calc(100% - var(--pad-x)*2); display: flex; }
   .exec-flow { order: 6; padding: 0 var(--pad-x); margin-bottom: 3rem; text-align: left !important; }
@@ -660,6 +660,7 @@ body.loading {
    ========================================= */
 @media (prefers-reduced-motion: reduce) {
   .act-section { height: auto; }
+  .scrub-wrapper { height: auto; }
   .sequence-stage { position: relative; height: 100vh; }
   .fallback-video { opacity: 1 !important; }
   .sequence-canvas { display: none; }
