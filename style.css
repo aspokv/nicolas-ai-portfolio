@@ -569,13 +569,18 @@ body.loading {
   .act-opening { display: flex; flex-direction: column; background: var(--c-deep); }
   .hero-content { display: contents; pointer-events: auto; }
   
-  .act-opening .video-container { 
-    position: relative !important; 
-    height: 75svh; 
+  .act-opening .scrub-wrapper { 
+    position: relative; 
+    height: 150svh; 
     width: 100vw; 
     order: 1; 
-    margin-top: var(--nav-h); 
     z-index: 1;
+  }
+  .act-opening .video-container { 
+    position: sticky !important; 
+    top: var(--nav-h);
+    height: 75svh; 
+    width: 100vw; 
   }
   .act-opening .scrub-video { object-fit: cover; object-position: center; }
   
@@ -611,12 +616,18 @@ body.loading {
   .system-headline { order: 2; padding: 0 var(--pad-x); margin-top: 2rem; margin-bottom: 1rem; text-align: left !important; }
   .system-desc { order: 3; padding: 0 var(--pad-x); margin-bottom: 2rem; text-align: left !important; }
   
+  .act-omega .scrub-wrapper, .act-exec .scrub-wrapper {
+    position: relative;
+    height: 150svh;
+    width: 100vw;
+    order: 4;
+  }
   .act-omega .video-container, .act-exec .video-container { 
-    position: relative !important; 
+    position: sticky !important; 
+    top: 20vh;
     width: 100vw; 
     height: auto; 
     aspect-ratio: 16 / 9; 
-    order: 4; 
     background: #000;
   }
   .act-omega .scrub-video, .act-exec .scrub-video { object-fit: contain; }
