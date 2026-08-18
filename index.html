@@ -57,14 +57,19 @@
     <!-- ACT 01 - OPENING HERO -->
     <section class="act-section act-opening" id="opening">
       
-      <div class="scrub-wrapper">
-        <div class="sequence-stage">
-          <canvas id="canvas-opening" class="sequence-canvas" aria-hidden="true"></canvas>
-          <video id="vid-opening" class="fallback-video" muted playsinline loop disableRemotePlayback>
-            <source src="/videos/01-opening-1080p.mp4" type="video/mp4" />
-          </video>
-        </div>
-      </div>
+      <video
+        id="hero-video"
+        class="hero-background-video"
+        autoplay
+        muted
+        loop
+        playsinline
+        preload="auto"
+        aria-hidden="true"
+        disableRemotePlayback
+      >
+        <source src="/videos/01-opening-1080p.mp4" type="video/mp4" />
+      </video>
 
       <div class="hero-content">
         <div class="hero-kicker mono-tracking" data-reveal>NICOLAS AI — AI SYSTEMS / EXPERIMENTS / PRODUCTS</div>
@@ -163,7 +168,7 @@
           <p class="system-desc" data-reveal>
             Uma biblioteca premium de Claude Skills, MCPs, prompts, agentes, workflows, automações, templates e sistemas prontos para copiar, adaptar e executar.
           </p>
-          <a href="https://omegavault.com.br/" target="_blank" rel="noopener noreferrer" class="btn-primary omega-btn" data-reveal>Abrir o Cofre</a>
+          <a href="https://omegavault.com.br/" target="_blank" rel="noopener noreferrer" class="btn-primary omega-btn">Abrir o Cofre</a>
         </div>
       </div>
     </section>
@@ -196,7 +201,7 @@
             OBJECTIVE &rarr; ANALYSIS &rarr; SPECIALISTS &rarr; TOOLS &rarr; WORKFLOW &rarr; EXECUTION
           </div>
 
-          <a href="https://aiexec.com.br/executar" target="_blank" rel="noopener noreferrer" class="btn-primary exec-btn" data-reveal>Executar um Objetivo</a>
+          <a href="https://aiexec.com.br/executar" target="_blank" rel="noopener noreferrer" class="btn-primary exec-btn">Executar um Objetivo</a>
         </div>
       </div>
     </section>

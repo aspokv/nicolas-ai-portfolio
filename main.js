@@ -25,7 +25,8 @@ const SOURCE_H = 810
 const FRAME_COUNT = 120
 const PREFETCH_BEHIND = 12
 const PREFETCH_AHEAD = 16
-const MAX_PARALLEL_LOADS = 6
+const MAX_PARALLEL_LOADS = 6          // total in-flight frame requests, all acts
+const MAX_BACKGROUND_LOADS = 2        // of which background prefetch may use
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v)
 
@@ -55,6 +56,7 @@ function renderPass() {
   if (!dirty) return          // nothing changed: the loop simply stops
   dirty = false
   for (let i = 0; i < renderables.length; i++) renderables[i].update(latestScrollY)
+  if (typeof updatePreloadHorizon === 'function') updatePreloadHorizon(latestScrollY)
 }
 
 // Passive: the page scrolls natively, this only observes it.
@@ -80,19 +82,28 @@ if (!isCoarsePointer && !prefersReducedMotion) {
   gsap.ticker.lagSmoothing(0)
 }
 
+/* Bandwidth is shared across the acts: frames for wherever the visitor is now
+   always take priority over any background warming. */
+const budget = { active: 0, background: 0 }
+const pumps = []
+const pumpAll = () => { for (let i = 0; i < pumps.length; i++) pumps[i]() }
+
 /* =========================================
    FRAME SEQUENCE
    ========================================= */
 class FrameSequence {
-  constructor(canvasId, sectionSelector, basePath) {
+  constructor(canvasId, sectionSelector, basePath, ctaSelector, ctaFrame) {
     this.canvas = document.getElementById(canvasId)
     this.section = document.querySelector(sectionSelector)
     this.basePath = basePath
+    this.cta = ctaSelector ? document.querySelector(ctaSelector) : null
+    this.ctaFrame = ctaFrame || 0
+    this.ctaOn = false
     this.frames = new Map()
     this.inflight = new Set()
     this.queueHi = []
     this.queueLo = []
-    this.active = 0
+    // (in-flight accounting lives in the shared budget above)
     this.lastDrawn = -1
     this.wantIndex = 0
     this.start = 0
@@ -101,6 +112,7 @@ class FrameSequence {
     this.ctx = this.canvas.getContext('2d', { alpha: false })
     this.measure()
     renderables.push(this)
+    pumps.push(() => this.pump())
   }
 
   /* --- geometry: the section's own bounds, no invented scroll corridor --- */
@@ -109,10 +121,11 @@ class FrameSequence {
     const top = rect.top + window.scrollY
     const vh = window.innerHeight
     const maxScroll = Math.max(1, document.documentElement.scrollHeight - vh)
-    // The sequence plays across the section's transit through the viewport:
-    // progress 0 as it starts entering, 1 as it finishes leaving.
-    this.start = clamp(top - vh, 0, maxScroll)
-    this.end = clamp(top + rect.height, 1, maxScroll)
+    // Frame 0 as the act comes up from the lower quarter of the screen, frame
+    // 119 while it is still well inside the viewport, so the sequence never
+    // finishes after its own copy has already scrolled away.
+    this.start = clamp(top - vh * 0.75, 0, maxScroll)
+    this.end = clamp(top + rect.height - vh * 0.25, 1, maxScroll)
     if (this.end <= this.start) this.end = this.start + 1
     this.sizeCanvas()
   }
@@ -149,13 +162,19 @@ class FrameSequence {
   }
 
   pump() {
-    while (this.active < MAX_PARALLEL_LOADS && (this.queueHi.length || this.queueLo.length)) {
-      // Frames near where the visitor actually is always overtake the skeleton.
-      const i = this.queueHi.length ? this.queueHi.shift() : this.queueLo.shift()
-      this.active++
+    while (budget.active < MAX_PARALLEL_LOADS) {
+      // Frames near where the visitor actually is always overtake the skeleton,
+      // and background work is capped so it can never fill the whole budget.
+      const takeHi = this.queueHi.length > 0
+      const takeLo = !takeHi && this.queueLo.length > 0 && budget.background < MAX_BACKGROUND_LOADS
+      if (!takeHi && !takeLo) return
+      const i = takeHi ? this.queueHi.shift() : this.queueLo.shift()
+      budget.active++
+      if (takeLo) budget.background++
       this.fetchFrame(i).finally(() => {
-        this.active--
-        this.pump()
+        budget.active--
+        if (takeLo) budget.background--
+        pumpAll()
       })
     }
   }
@@ -240,6 +259,16 @@ class FrameSequence {
     this.lastDrawn = drawIndex
     this.canvas.dataset.frame = a           // frame the scroll position asks for
     this.canvas.dataset.drawn = drawIndex   // frame actually painted
+
+    // The call to action lights up only once the platform's interface has been
+    // built on screen, and dims again if the visitor scrolls back before it.
+    if (this.cta) {
+      const on = a >= this.ctaFrame
+      if (on !== this.ctaOn) {
+        this.ctaOn = on
+        this.cta.classList.toggle('cta-live', on)
+      }
+    }
     if (!this.canvas.classList.contains('ready')) this.canvas.classList.add('ready')
   }
 }
@@ -257,11 +286,13 @@ function decodeBlob(blob) {
 /* =========================================
    SEQUENCES
    ========================================= */
-const sequences = [
-  new FrameSequence('canvas-opening', '.act-opening', '/sequences/opening'),
-  new FrameSequence('canvas-omega', '.act-omega', '/sequences/omega'),
-  new FrameSequence('canvas-exec', '.act-exec', '/sequences/execution'),
-].filter((s) => s.ctx)
+// Only the two platform acts are scrubbed. The hero is a plain looping video
+// and owns no canvas, no frame sequence and no scroll maths.
+// Milestone frames come from the sequences themselves: Omega's vault interface
+// is complete from frame 90, the Execution OS interface from frame 105.
+const omega = new FrameSequence('canvas-omega', '.act-omega', '/sequences/omega', '.omega-btn', 90)
+const execution = new FrameSequence('canvas-exec', '.act-exec', '/sequences/execution', '.exec-btn', 105)
+const sequences = [omega, execution].filter((s) => s.ctx)
 
 /* =========================================
    EDITORIAL REVEALS
@@ -324,21 +355,87 @@ window.addEventListener('load', remeasure, { passive: true })
    ========================================= */
 document.body.classList.remove('loading')
 
+// Both acts show their first frame straight away so neither is ever blank.
 sequences.forEach((s) => s.request(0))
-if (sequences[0]) {
-  // Skeleton first: with every other frame decoded, the nearest available frame
-  // is never more than one away from the one the scroll asks for, so the canvas
-  // tracks the finger from the first seconds instead of waiting on the network.
-  sequences[0].prefetchSkeleton(2, false)
-  sequences[0].prefetchAround(0)
-}
 remeasure()
 
+/* =========================================
+   HERO VIDEO
+
+   Plays on its own, muted and looping, with no relationship to the scroll.
+   ========================================= */
+const heroVideo = document.getElementById('hero-video')
+
+if (heroVideo) {
+  heroVideo.muted = true
+  heroVideo.defaultMuted = true
+  heroVideo.playsInline = true
+
+  if (prefersReducedMotion) {
+    // A single representative still instead of continuous motion.
+    heroVideo.autoplay = false
+    heroVideo.removeAttribute('autoplay')
+    heroVideo.pause()
+    const freeze = () => { heroVideo.pause(); heroVideo.classList.add('is-ready') }
+    heroVideo.addEventListener('loadeddata', freeze, { once: true })
+    if (heroVideo.readyState >= 2) freeze()
+  } else {
+    const tryPlay = () => {
+      const attempt = heroVideo.play()
+      if (attempt && attempt.catch) attempt.catch(() => {})
+    }
+    const onReady = () => { heroVideo.classList.add('is-ready'); tryPlay(); startPlatformPreload() }
+    heroVideo.addEventListener('canplay', onReady, { once: true })
+    heroVideo.addEventListener('loadeddata', () => heroVideo.classList.add('is-ready'), { once: true })
+    if (heroVideo.readyState >= 3) onReady()
+    tryPlay()
+
+    // If autoplay is refused, resume silently on the first interaction. No
+    // controls are shown and nothing is blocked.
+    const resume = () => {
+      if (heroVideo.paused) tryPlay()
+      if (!heroVideo.paused) {
+        window.removeEventListener('touchstart', resume)
+        window.removeEventListener('pointerdown', resume)
+      }
+    }
+    window.addEventListener('touchstart', resume, { passive: true })
+    window.addEventListener('pointerdown', resume, { passive: true })
+  }
+}
+
+/* =========================================
+   PLATFORM PRELOAD
+
+   Omega is warmed once the hero can play, Execution once the visitor is within
+   reach of Omega. The two sequences are never fetched at the same time.
+   ========================================= */
+let omegaWarmed = false
+let execWarmed = false
+
+function startPlatformPreload() {
+  if (omegaWarmed || prefersReducedMotion || !omega.ctx) return
+  omegaWarmed = true
+  omega.prefetchSkeleton(2, false)
+  omega.prefetchAround(0)
+}
+
+function warmExecution() {
+  if (execWarmed || prefersReducedMotion || !execution.ctx) return
+  execWarmed = true
+  execution.prefetchSkeleton(2, true)
+  execution.prefetchAround(0)
+}
+
+// Approaching Omega (two viewports out) promotes it; reaching it starts
+// Execution. Checked from the same passive scroll signal as the renderer.
+function updatePreloadHorizon(scrollY) {
+  const vh = window.innerHeight
+  if (!omegaWarmed && omega.ctx && scrollY > omega.start - vh * 2) startPlatformPreload()
+  if (!execWarmed && omega.ctx && scrollY > omega.start - vh * 0.5) warmExecution()
+}
+
 if (!prefersReducedMotion) {
-  const warm = () => sequences.slice(1).forEach((s, i) => setTimeout(() => {
-    s.prefetchSkeleton(4, true)
-    s.prefetchAround(0)
-  }, i * 500))
-  if ('requestIdleCallback' in window) requestIdleCallback(warm, { timeout: 2500 })
-  else setTimeout(warm, 1200)
+  // Fallback if canplay never fires (blocked autoplay, cached video, etc).
+  setTimeout(startPlatformPreload, 3000)
 }
