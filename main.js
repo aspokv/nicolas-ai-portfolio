@@ -33,12 +33,24 @@ const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v)
 /* =========================================
    GLOBAL RENDER SCHEDULER
 
-   One rAF for every canvas on the page. Scroll listeners only record the
-   position and raise a flag; the frame callback does the drawing and then goes
-   quiet until something actually changes.
+   One rAF for every canvas on the page.
+
+   The frame callback reads window.scrollY itself rather than trusting a value
+   cached by the scroll listener. On a phone the page is scrolled by the
+   compositor and the scroll event reaches the main thread late, so a callback
+   that renders from the cached value can paint a position several frames old.
+   Reading it here means the canvas is always drawn for where the page is at
+   the moment of painting.
+
+   After the last movement the loop keeps checking for a few frames, to catch
+   compositor updates that arrive without an event, and then stops.
    ========================================= */
+const IDLE_FRAMES_BEFORE_STOP = 3
+
 let latestScrollY = window.scrollY
+let renderedScrollY = NaN
 let dirty = true
+let idleFrames = 0
 let rafId = null
 const renderables = []
 
@@ -48,15 +60,29 @@ function schedule() {
 
 function markDirty() {
   dirty = true
+  idleFrames = 0
   schedule()
 }
 
 function renderPass() {
   rafId = null
-  if (!dirty) return          // nothing changed: the loop simply stops
-  dirty = false
-  for (let i = 0; i < renderables.length; i++) renderables[i].update(latestScrollY)
-  if (typeof updatePreloadHorizon === 'function') updatePreloadHorizon(latestScrollY)
+  const y = window.scrollY                 // live position, read at paint time
+  const moved = y !== renderedScrollY
+
+  if (moved || dirty) {
+    latestScrollY = y
+    renderedScrollY = y
+    dirty = false
+    idleFrames = 0
+    for (let i = 0; i < renderables.length; i++) renderables[i].update(y)
+    updatePreloadHorizon(y)
+    schedule()                             // keep watching while things move
+    return
+  }
+
+  // Nothing changed this frame. Watch a little longer in case the compositor
+  // is still moving without having told us, then go quiet.
+  if (++idleFrames < IDLE_FRAMES_BEFORE_STOP) schedule()
 }
 
 // Passive: the page scrolls natively, this only observes it.
@@ -84,7 +110,7 @@ if (!isCoarsePointer && !prefersReducedMotion) {
 
 /* Bandwidth is shared across the acts: frames for wherever the visitor is now
    always take priority over any background warming. */
-const budget = { active: 0, background: 0 }
+const budget = { active: 0, background: 0, urgent: 0 }
 const pumps = []
 const pumpAll = () => { for (let i = 0; i < pumps.length; i++) pumps[i]() }
 
@@ -105,7 +131,6 @@ class FrameSequence {
     this.queueLo = []
     // (in-flight accounting lives in the shared budget above)
     this.lastDrawn = -1
-    this.wantIndex = 0
     this.start = 0
     this.end = 1
     if (!this.canvas || !this.section) return
@@ -147,6 +172,11 @@ class FrameSequence {
     return clamp((scrollY - this.start) / (this.end - this.start), 0, 1)
   }
 
+  // The single definition of "which frame belongs to this scroll position".
+  frameAt(scrollY) {
+    return Math.floor(this.progressAt(scrollY) * (FRAME_COUNT - 1))
+  }
+
   /* --- loading: never blocks scrolling, never draws a stale answer --- */
   url(i) {
     return `${this.basePath}/frame_${String(i + 1).padStart(4, '0')}.webp`
@@ -156,20 +186,27 @@ class FrameSequence {
     if (i < 0 || i >= FRAME_COUNT) return
     if (this.frames.has(i) || this.inflight.has(i)) return
     this.inflight.add(i)
-    if (low) this.queueLo.push(i)
-    else this.queueHi.push(i)
+    if (low) {
+      this.queueLo.push(i)
+    } else {
+      this.queueHi.push(i)
+      budget.urgent++
+    }
     this.pump()
   }
 
   pump() {
     while (budget.active < MAX_PARALLEL_LOADS) {
-      // Frames near where the visitor actually is always overtake the skeleton,
-      // and background work is capped so it can never fill the whole budget.
+      // Frames near where the visitor actually is always overtake background
+      // work. Background warming may use the whole budget while nothing urgent
+      // is waiting, and is squeezed back to a couple of slots the moment it is.
+      const bgCap = budget.urgent > 0 ? MAX_BACKGROUND_LOADS : MAX_PARALLEL_LOADS
       const takeHi = this.queueHi.length > 0
-      const takeLo = !takeHi && this.queueLo.length > 0 && budget.background < MAX_BACKGROUND_LOADS
+      const takeLo = !takeHi && this.queueLo.length > 0 && budget.background < bgCap
       if (!takeHi && !takeLo) return
       const i = takeHi ? this.queueHi.shift() : this.queueLo.shift()
       budget.active++
+      if (takeHi) budget.urgent--
       if (takeLo) budget.background++
       this.fetchFrame(i).finally(() => {
         budget.active--
@@ -191,8 +228,12 @@ class FrameSequence {
       // on the canvas, and the repaint re-reads the current scroll position. So
       // a frame fetched for a position the visitor already left cannot appear,
       // and once the exact frame is up, nothing repaints again.
+      // Judged against where the page is right now, not against the position
+      // that originally asked for this frame. A frame fetched for a place the
+      // visitor has already left can never take over the canvas.
+      const want = this.frameAt(window.scrollY)
       const improves = this.lastDrawn < 0
-        || Math.abs(i - this.wantIndex) < Math.abs(this.lastDrawn - this.wantIndex)
+        || Math.abs(i - want) < Math.abs(this.lastDrawn - want)
       if (improves) markDirty()
     } catch (e) {
       /* a missing frame degrades to its nearest loaded neighbour */
@@ -228,6 +269,17 @@ class FrameSequence {
     this.request(FRAME_COUNT - 1, low)
   }
 
+  // Every remaining frame, at background priority. Combined with the skeleton
+  // this brings the act to a complete decode without ever competing with the
+  // frames the visitor is looking at.
+  prefetchComplete() {
+    for (let i = 0; i < FRAME_COUNT; i++) this.request(i, true)
+  }
+
+  get decoded() {
+    return this.frames.size
+  }
+
   /* --- draw: derived from the scroll position handed in, nothing else --- */
   update(scrollY) {
     if (!this.ctx) return
@@ -237,7 +289,6 @@ class FrameSequence {
     const bIndex = Math.min(FRAME_COUNT - 1, a + 1)
     const mix = exact - a
 
-    this.wantIndex = a
     this.prefetchAround(a)
 
     const drawIndex = this.nearestIndex(a)
@@ -344,7 +395,9 @@ window.addEventListener('resize', () => {
   resizeTimer = setTimeout(remeasure, 150)
 }, { passive: true })
 window.addEventListener('orientationchange', () => setTimeout(remeasure, 250), { passive: true })
-window.addEventListener('load', remeasure, { passive: true })
+window.addEventListener('load', () => { remeasure(); geometryReady = true }, { passive: true })
+// Belt and braces if the load event has already gone by.
+setTimeout(() => { remeasure(); geometryReady = true }, 1200)
 
 /* =========================================
    BOOT
@@ -413,29 +466,42 @@ if (heroVideo) {
 let omegaWarmed = false
 let execWarmed = false
 
+// Omega is brought to a complete decode as soon as the hero can play, which is
+// long before its section can be reached. The stride-2 skeleton goes first at
+// foreground priority so that even an immediate scroll finds a frame at most
+// one away from the one it asks for; the rest fills in behind it.
 function startPlatformPreload() {
   if (omegaWarmed || prefersReducedMotion || !omega.ctx) return
   omegaWarmed = true
-  omega.prefetchSkeleton(2, false)
-  omega.prefetchAround(0)
+  omega.prefetchSkeleton(2, false)   // promote anything still queued
+  omega.prefetchComplete()
 }
 
+// Execution is prepared while the visitor is inside the Omega section, which is
+// a whole section of scrolling before its own frames are needed.
 function warmExecution() {
   if (execWarmed || prefersReducedMotion || !execution.ctx) return
   execWarmed = true
-  execution.prefetchSkeleton(2, true)
-  execution.prefetchAround(0)
+  execution.prefetchSkeleton(2, false)
+  execution.prefetchComplete()
 }
 
-// Approaching Omega (two viewports out) promotes it; reaching it starts
-// Execution. Checked from the same passive scroll signal as the renderer.
+// Distances are only meaningful once the layout has settled; before that the
+// section offsets are still moving and would trigger both acts at once.
+let geometryReady = false
+
 function updatePreloadHorizon(scrollY) {
+  if (!geometryReady) return
   const vh = window.innerHeight
-  if (!omegaWarmed && omega.ctx && scrollY > omega.start - vh * 2) startPlatformPreload()
-  if (!execWarmed && omega.ctx && scrollY > omega.start - vh * 0.5) warmExecution()
+  if (!omegaWarmed && omega.ctx && scrollY > omega.start - vh * 3) startPlatformPreload()
+  // Entering the Omega section starts Execution.
+  if (!execWarmed && omega.ctx && scrollY > omega.start - vh * 0.25) warmExecution()
 }
 
 if (!prefersReducedMotion) {
-  // Fallback if canplay never fires (blocked autoplay, cached video, etc).
-  setTimeout(startPlatformPreload, 3000)
+  // Omega starts immediately. The hero video only needs its opening buffer to
+  // begin playing and the browser prioritises media, so starting here rather
+  // than at canplay buys the seconds that decide whether the act is complete
+  // by the time it can be reached.
+  startPlatformPreload()
 }
