@@ -8,20 +8,28 @@
   --c-mineral: #8E8B84;
   --c-line: rgba(242, 239, 231, 0.12);
   --c-line-hover: rgba(242, 239, 231, 0.25);
-  
+
   --c-omega: #B89966; /* Old gold / Bronze */
   --c-exec: #B11C52;  /* Deep magenta */
 
   /* Typography */
   --font-display: 'Instrument Serif', serif;
   --font-body: 'Inter', sans-serif;
-  
+
   /* Layout */
   --pad-x: 5vw;
   --pad-y: 6rem;
-  
+
   /* Utils */
   --nav-h: 80px;
+
+  /* Cinematic scene length. The pinned stage is one viewport, so the scroll
+     travel a visitor spends inside a platform is (--stage-span - 100svh). */
+  --stage-span: 280svh;
+
+  /* Editorial rhythm of the manifesto: gap inside a group, gap between groups */
+  --man-gap: 5vh;
+  --man-group-gap: 12vh;
 }
 
 * {
@@ -128,7 +136,29 @@ body.loading {
   border-color: var(--c-warm);
 }
 
-/* Nav */
+/* A secondary action that reads as text, not as a second button. */
+.quiet-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  text-decoration: none;
+  color: var(--c-mineral);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding-bottom: 2px;
+  border-bottom: 1px solid transparent;
+  transition: color 0.3s ease, border-color 0.3s ease;
+}
+
+.quiet-link:hover {
+  color: var(--c-warm);
+  border-bottom-color: var(--c-line-hover);
+}
+
+/* =========================================
+   NAV — silent and translucent, no panel
+   ========================================= */
 .main-nav {
   position: fixed;
   top: 0; left: 0; width: 100%;
@@ -138,26 +168,39 @@ body.loading {
   align-items: center;
   justify-content: space-between;
   z-index: 100;
-  mix-blend-mode: difference; /* Ensures visibility over light videos */
+  isolation: isolate;
+}
+
+/* A breath of shade behind the wordmark instead of an opaque bar. */
+.main-nav::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(3, 3, 3, 0.72) 0%, rgba(3, 3, 3, 0.32) 55%, rgba(3, 3, 3, 0) 100%);
 }
 
 .nav-brand {
   font-family: var(--font-display);
   font-size: 1.5rem;
   letter-spacing: 0.02em;
+  color: var(--c-warm);
 }
 
 .nav-progress-bar {
   position: absolute;
   bottom: 0; left: 0; width: 100%;
   height: 1px;
-  background-color: var(--c-line);
+  background-color: rgba(242, 239, 231, 0.08);
 }
 .progress-fill {
   height: 100%;
-  width: 0%;
+  width: 100%;
   background-color: var(--c-warm);
+  transform: scaleX(0);
   transform-origin: left;
+  opacity: 0.55;
 }
 
 .nav-links {
@@ -166,78 +209,32 @@ body.loading {
 }
 
 .nav-links a {
-  color: var(--c-warm);
+  color: rgba(242, 239, 231, 0.7);
   text-decoration: none;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
+  transition: color 0.3s ease;
 }
 
 .nav-links a:hover {
-  color: var(--c-mineral);
+  color: var(--c-warm);
 }
 
 /* =========================================
-   VIDEO SCRUB SECTIONS ARCHITECTURE
+   ACT SHELL
    ========================================= */
 .act-section {
   position: relative;
   width: 100%;
 }
 
-/* Every act is exactly one viewport tall. The frame sequence is played by the
-   scene timeline on gesture, so no scroll corridor is needed behind it. */
-.scrub-wrapper {
-  height: 100svh;
-}
-
-/* Each act fills the viewport. No snap and no scroll corridor: the canvas is
-   scrubbed by the section's own transit through the viewport. */
-[data-scene] {
-  min-height: 100svh;
-}
-
-.sequence-stage {
-  position: sticky;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-  background-color: var(--c-carbon);
-  z-index: 0;
-}
-
-.sequence-canvas, .fallback-video {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.sequence-canvas {
-  z-index: 2;
-  opacity: 0;
-  transition: opacity 0.5s ease;
-  pointer-events: none;
-}
-
-.sequence-canvas.ready {
-  opacity: 1;
-}
-
-.fallback-video {
-  z-index: 1;
-}
-
 /* =========================================
-   ACT 01 - OPENING (native looping video, independent of scroll)
+   ACT 01 — CINEMATIC OPENING
+   Exactly one viewport. The footage carries the screen.
    ========================================= */
 .act-opening {
-  position: relative;
-  min-height: 100svh;
+  height: 100svh;
   background-color: var(--c-carbon);
   overflow: hidden;
 }
@@ -260,69 +257,138 @@ body.loading {
   opacity: 1;
 }
 
-/* Legibility scrim for the copy sitting over the footage. */
-.act-opening::after {
-  content: '';
+/* Cinematic falloff only at the extremities. The middle band — where the head
+   and the glasses sit — is left completely clear, and the ramp is pure deep
+   black rather than a grey film over the footage. */
+.hero-veil {
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  background: linear-gradient(
-    to top,
-    rgba(0, 0, 0, 0.82) 0%,
-    rgba(0, 0, 0, 0.55) 32%,
-    rgba(0, 0, 0, 0.18) 62%,
-    rgba(0, 0, 0, 0.34) 100%
-  );
+  background:
+    linear-gradient(to bottom,
+      rgba(3, 3, 3, 0.78) 0%,
+      rgba(3, 3, 3, 0.26) 9%,
+      rgba(3, 3, 3, 0) 20%),
+    linear-gradient(to top,
+      rgba(3, 3, 3, 0.95) 0%,
+      rgba(3, 3, 3, 0.74) 12%,
+      rgba(3, 3, 3, 0.32) 26%,
+      rgba(3, 3, 3, 0) 42%);
 }
 
-.hero-content {
+/* Driven by scroll position, never by a clock. */
+.hero-dim {
   position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100vh;
-  padding: var(--pad-x);
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background-color: var(--c-deep);
+  opacity: 0;
+}
+
+.hero-frame {
+  position: absolute;
+  inset: 0;
   z-index: 10;
-  pointer-events: none; /* Let clicks pass to video if needed, except for CTAs */
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 3rem;
+  padding: 0 var(--pad-x) clamp(2.25rem, 7vh, 4.5rem);
+  pointer-events: none;
 }
 
-.hero-ctas { pointer-events: auto; }
-
-.hero-kicker {
-  margin-bottom: 2rem;
+.hero-line {
+  max-width: min(46%, 640px);
 }
 
-.hero-headline {
+.hero-eyebrow {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  color: rgba(242, 239, 231, 0.5);
+  margin-bottom: 1.15rem;
+}
+
+.hero-statement {
   font-family: var(--font-display);
-  font-size: clamp(3rem, 7vw, 7rem);
-  line-height: 1;
+  font-size: clamp(2.2rem, 5.2vw, 5rem);
+  line-height: 0.98;
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: -0.01em;
-  margin-bottom: 2rem;
-  max-width: 90%;
 }
 
-.hero-subheadline {
-  font-size: clamp(1rem, 1.2vw, 1.25rem);
-  color: var(--c-mineral);
-  max-width: 500px;
-  line-height: 1.6;
-  margin-bottom: 3rem;
-}
-
-.hero-ctas {
+/* Hairline scroll mark. No loop, no bounce: it simply marks the direction. */
+.hero-scroll {
   display: flex;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  padding-bottom: 0.35rem;
+}
+
+.hero-scroll-rule {
+  display: block;
+  width: 1px;
+  height: 46px;
+  background: linear-gradient(to bottom, rgba(242, 239, 231, 0) 0%, rgba(242, 239, 231, 0.45) 100%);
+}
+
+.hero-scroll-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.22em;
+  color: rgba(242, 239, 231, 0.42);
+  writing-mode: vertical-rl;
 }
 
 /* =========================================
-   MANIFESTO
+   ACT 02 — EDITORIAL DECLARATION
+   ========================================= */
+.act-declaration {
+  min-height: 82svh;
+  background-color: var(--c-deep);
+  display: flex;
+  align-items: center;
+  padding: clamp(3.5rem, 9vh, 7rem) var(--pad-x);
+}
+
+.declaration-inner {
+  width: 100%;
+}
+
+.declaration-headline {
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 5.4vw, 5.25rem);
+  line-height: 1.02;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: -0.012em;
+  max-width: 19ch;
+}
+
+.declaration-support {
+  color: var(--c-mineral);
+  font-size: clamp(0.98rem, 1.15vw, 1.15rem);
+  line-height: 1.62;
+  max-width: 52ch;
+  margin-top: 2.75rem; /* >= 40px of air */
+}
+
+.declaration-actions {
+  display: flex;
+  align-items: center;
+  gap: 2.25rem;
+  flex-wrap: wrap;
+  margin-top: 2.75rem; /* >= 40px of air */
+}
+
+/* =========================================
+   MANIFESTO — grouped editorially, not one line per screen
    ========================================= */
 .manifesto-section {
-  min-height: 100vh;
+  min-height: 80vh;
   background-color: var(--c-deep);
   display: flex;
   align-items: center;
@@ -384,29 +450,91 @@ body.loading {
 }
 
 /* =========================================
-   ACTS 02 & 03 (SYSTEMS)
+   ACTS 03 & 04 — CINEMATIC PLATFORM SCENES
+
+   The section is tall; the stage inside it is exactly one viewport and stays
+   pinned for the whole traverse. Frame, pan and CTA are all read off the
+   scroll position, so nothing keeps moving once the page stops.
    ========================================= */
-.system-content {
+.act-omega,
+.act-exec {
+  height: var(--stage-span);
+  background-color: var(--c-deep);
+}
+
+.cinematic-stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+  background-color: var(--c-deep);
+  z-index: 0;
+  display: grid;
+  grid-template-columns: minmax(300px, 34%) 1fr;
+  align-items: center;
+}
+
+.stage-media {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  align-self: stretch;
+  height: 100svh;
+  overflow: hidden;
+}
+
+/* The frame is fused into the page with black, not boxed in a card. */
+.stage-media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    linear-gradient(to right, var(--c-deep) 0%, rgba(3, 3, 3, 0.62) 7%, rgba(3, 3, 3, 0) 24%),
+    linear-gradient(to bottom, rgba(3, 3, 3, 0.6) 0%, rgba(3, 3, 3, 0) 15%, rgba(3, 3, 3, 0) 82%, rgba(3, 3, 3, 0.72) 100%);
+}
+
+.sequence-canvas, .fallback-video {
   position: absolute;
   top: 0;
-  width: 500px;
-  height: 100vh;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sequence-canvas {
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+
+.sequence-canvas.ready {
+  opacity: 1;
+}
+
+.fallback-video {
+  z-index: 1;
+}
+
+.system-content {
+  grid-column: 1;
+  grid-row: 1;
+  position: relative;
+  z-index: 10;
   padding: var(--pad-x);
   display: flex;
   flex-direction: column;
   justify-content: center;
-  z-index: 10;
   pointer-events: none;
 }
 
 .system-body { pointer-events: auto; }
 
-.content-left { left: 0; }
-.content-right { right: 0; text-align: right; align-items: flex-end; }
-.content-right .system-desc { text-align: right; }
-
 .system-header {
-  margin-bottom: 3rem;
+  margin-bottom: 2.5rem;
 }
 
 .system-label {
@@ -416,25 +544,31 @@ body.loading {
 
 .system-title {
   font-family: var(--font-display);
-  font-size: clamp(3rem, 5vw, 5rem);
+  font-size: clamp(2.5rem, 4.2vw, 4.25rem);
   line-height: 1;
-  margin-bottom: 1rem;
+  margin-bottom: 0.85rem;
 }
 
 .system-signature {
+  display: block;
   color: var(--c-mineral);
+  font-size: 0.68rem;
+  line-height: 1.7;
 }
 
 .system-headline {
-  font-size: 1.25rem;
+  font-size: clamp(1.05rem, 1.35vw, 1.3rem);
   font-weight: 500;
-  margin-bottom: 1rem;
+  line-height: 1.35;
+  margin-bottom: 0.9rem;
 }
 
 .system-desc {
   color: var(--c-mineral);
+  font-size: clamp(0.86rem, 0.95vw, 0.98rem);
   line-height: 1.6;
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
+  max-width: 44ch;
 }
 
 /* Omega Theming */
@@ -448,9 +582,23 @@ body.loading {
 .exec-btn:hover { color: var(--c-exec); }
 
 .exec-flow {
-  font-size: 0.65rem;
-  margin-bottom: 2rem;
   color: var(--c-exec);
+  letter-spacing: 0.12em;
+}
+
+/* The platform CTAs stay out of the composition until the interface they point
+   at has been built on screen, and step back if the visitor scrolls above it. */
+.omega-btn, .exec-btn {
+  opacity: 0;
+  transform: translate3d(0, 8px, 0);
+  pointer-events: none;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+
+.omega-btn.cta-live, .exec-btn.cta-live {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  pointer-events: auto;
 }
 
 /* =========================================
@@ -575,7 +723,7 @@ body.loading {
 
 .arrow {
   font-family: var(--font-body);
-  font-size: 1.5rem;
+  font-size: 1.15em;
 }
 
 /* =========================================
@@ -606,112 +754,140 @@ body.loading {
 }
 
 /* =========================================
-   MOBILE RESPONSIVENESS
+   TABLET / SMALL DESKTOP
    ========================================= */
 @media (max-width: 1024px) {
-  .system-content { width: 400px; }
   .lab-link { grid-template-columns: 50px 1fr; gap: 1rem; }
   .lab-micro { grid-column: 1 / -1; padding-left: 50px; }
   .about-grid { grid-template-columns: 1fr; }
   .final-cta-area { border-left: none; padding-left: 0; border-top: 1px solid var(--c-line); padding-top: 4rem; }
+
+  /* PLATFORM STAGES — vertical composition, canvas in the middle and dominant.
+     Title block on top, copy and CTA at the foot, nothing over the frame. */
+  .cinematic-stage {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+
+  .system-content { display: contents; }
+  .system-body { display: block; }
+
+  .system-header {
+    order: 1;
+    padding: calc(var(--nav-h) + 0.9rem) var(--pad-x) 0;
+    margin-bottom: 0;
+    flex: 0 0 auto;
+  }
+
+  .stage-media {
+    order: 2;
+    grid-column: auto;
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+  }
+
+  /* Vertical fusion only: the frame runs edge to edge. */
+  .stage-media::after {
+    background:
+      linear-gradient(to bottom, rgba(3, 3, 3, 0.55) 0%, rgba(3, 3, 3, 0) 12%, rgba(3, 3, 3, 0) 86%, rgba(3, 3, 3, 0.6) 100%);
+  }
+
+  .system-body {
+    order: 3;
+    padding: 0.9rem var(--pad-x) calc(1rem + env(safe-area-inset-bottom));
+    flex: 0 0 auto;
+  }
+
+  .system-label { margin-bottom: 0.55rem; }
+  .system-title { margin-bottom: 0.5rem; }
+  .system-desc { max-width: none; margin-bottom: 1rem; }
+  .omega-btn, .exec-btn { width: 100%; min-height: 50px; padding: 0.8rem 1.5rem; }
 }
 
+/* =========================================
+   MOBILE
+   ========================================= */
 @media (max-width: 768px) {
   :root { --pad-x: 1.5rem; --pad-y: 4rem; --nav-h: 60px; }
-  
-  /* HEADER */
-  .main-nav { height: var(--nav-h); padding: 0 var(--pad-x); z-index: 1000; background: var(--c-deep); mix-blend-mode: normal; border-bottom: 1px solid var(--c-line); }
+
   .nav-links { display: none; }
   .nav-brand { font-size: 1.25rem; }
   .nav-progress-bar { display: none; }
-  
-  /* ACT SECTIONS - Remove Pinning Heights */
-  .act-section { height: auto !important; position: static !important; }
-  .act-section.act-omega, .act-section.act-exec { height: auto !important; }
-  
-  /* HERO - copy over the looping footage, one viewport tall */
-  .act-opening { position: relative !important; min-height: 100svh; background: var(--c-carbon); }
-  .hero-content {
-    position: relative;
-    height: auto;
-    min-height: 100svh;
-    pointer-events: auto;
+
+  /* HERO — the statement lives in the lower third, clear of the face. */
+  .hero-background-video { object-position: 50% 30%; }
+
+  .hero-frame {
+    flex-direction: column;
+    align-items: flex-start;
     justify-content: flex-end;
-    padding: calc(var(--nav-h) + 1.5rem) 0 0;
+    gap: 1.35rem;
+    padding: 0 var(--pad-x) calc(1.75rem + env(safe-area-inset-bottom));
   }
-  /* Framing on tall screens: bias upwards so the head is never cropped. */
-  .hero-background-video { object-position: 50% 32%; }
-  
-  .hero-kicker { padding: 0 var(--pad-x); margin-bottom: 1rem; }
-  .hero-headline { 
-    padding: 0 var(--pad-x); margin-bottom: 1.5rem; 
-    font-size: clamp(2.7rem, 13vw, 4rem); line-height: 0.95; max-width: 100%; word-break: break-word; 
-  }
-  .hero-subheadline { padding: 0 var(--pad-x); margin-bottom: 2rem; font-size: 1rem; }
-  .hero-ctas { padding: 0 var(--pad-x) 3rem; display: flex; flex-direction: column; gap: 1rem; width: 100%; }
-  .btn-primary, .btn-secondary { width: 100%; min-height: 52px; }
-  
-  /* MANIFESTO */
-  .manifesto-section { padding: 15vh var(--pad-x) 15vh; align-items: flex-start; min-height: auto; display: block; }
+
+  .hero-line { max-width: 100%; }
+  .hero-eyebrow { font-size: 0.58rem; letter-spacing: 0.14em; margin-bottom: 0.9rem; }
+  .hero-statement { font-size: clamp(2.35rem, 11.5vw, 3.3rem); line-height: 1; }
+
+  .hero-scroll { padding-bottom: 0; gap: 0.6rem; }
+  .hero-scroll-rule { height: 30px; }
+  .hero-scroll-label { writing-mode: horizontal-tb; font-size: 0.55rem; }
+
+  /* DECLARATION */
+  .act-declaration { min-height: 80svh; }
+  .declaration-headline { max-width: 100%; font-size: clamp(2.2rem, 9.5vw, 3.1rem); line-height: 1.05; }
+  .declaration-support { margin-top: 2.5rem; font-size: 0.98rem; }
+  .declaration-actions { margin-top: 2.5rem; gap: 1.5rem; flex-direction: column; align-items: stretch; }
+  .declaration-actions .btn-primary { width: 100%; min-height: 52px; }
+  .declaration-actions .quiet-link { justify-content: center; }
+
+  /* MANIFESTO — five lines, three editorial groups, short stagger. */
+  .manifesto-section { padding: 9vh var(--pad-x); align-items: flex-start; min-height: auto; display: block; }
   .manifesto-container { width: 100%; }
-  .manifesto-text { display: flex; flex-direction: column; gap: 25vh; font-size: clamp(2.3rem, 8vw, 3.2rem); line-height: 1.1; }
-  .manifesto-text .clip-line { border-bottom: 1px solid var(--c-line); padding-bottom: 1.5rem; margin-bottom: 0; }
-  .manifesto-text .clip-line:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-  
-  /* EVIDENCE WALL */
-  .evidence-wall { padding-bottom: 2rem; }
-  .evidence-grid { grid-template-columns: 1fr; gap: 2rem; margin-bottom: 2rem; padding-bottom: 2rem; }
-  .evidence-item { border-left: none; border-top: 1px solid var(--c-line); padding-left: 0; padding-top: 1.5rem; }
-  .evidence-number { font-size: 3rem; }
-  .closing-phrase { font-size: 1.5rem; }
-  
-  /* OMEGA & AI EXEC (Label -> Title -> Headline -> Desc -> Video -> CTA -> Flow) */
-  .act-omega, .act-exec { display: flex; flex-direction: column; padding-top: 0; background: var(--c-deep); }
-  .system-content { display: contents; pointer-events: auto; }
-  .system-body { display: contents; }
-  
-  .system-header { order: 1; padding: 4rem var(--pad-x) 0; margin-bottom: 0; text-align: left !important; }
-  .system-headline { order: 2; padding: 0 var(--pad-x); margin-top: 2rem; margin-bottom: 1rem; text-align: left !important; }
-  .system-desc { order: 3; padding: 0 var(--pad-x); margin-bottom: 2rem; text-align: left !important; }
-  
-  .act-omega .scrub-wrapper, .act-exec .scrub-wrapper {
-    position: relative;
-    height: auto;
-    width: 100vw;
-    order: 4;
+  .manifesto-text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--man-gap);
+    font-size: clamp(2.1rem, 7.6vw, 3rem);
+    line-height: 1.1;
   }
-  .act-omega .sequence-stage, .act-exec .sequence-stage { 
-    position: sticky !important; 
-    top: 20vh;
-    width: 100vw; 
-    height: auto; 
-    aspect-ratio: 16 / 9; 
-    background: #000;
-  }
-  .act-omega .sequence-canvas, .act-omega .fallback-video, .act-exec .sequence-canvas, .act-exec .fallback-video { object-fit: contain; }
-  
-  .omega-btn, .exec-btn { order: 5; margin: 2rem var(--pad-x); min-height: 52px; width: calc(100% - var(--pad-x)*2); display: flex; }
-  .exec-flow { order: 6; padding: 0 var(--pad-x); margin-bottom: 3rem; text-align: left !important; }
-  
+  .manifesto-text .clip-line:nth-child(2),
+  .manifesto-text .clip-line:nth-child(4) { margin-top: var(--man-group-gap); }
+
+  /* EVIDENCE WALL — a compact data grid rather than a tall column. */
+  .evidence-wall { padding: 4rem var(--pad-x) 2.5rem; }
+  .evidence-grid { grid-template-columns: 1fr 1fr; gap: 1.5rem 1.1rem; margin-bottom: 2rem; padding-bottom: 2rem; }
+  .evidence-item { border-left: none; border-top: 1px solid var(--c-line); padding-left: 0; padding-top: 1rem; }
+  .evidence-number { font-size: clamp(1.45rem, 6.6vw, 2rem); margin-bottom: 0.5rem; }
+  .evidence-label { font-size: 0.62rem; letter-spacing: 0.1em; margin-bottom: 0.3rem; }
+  .evidence-desc { font-size: 0.78rem; line-height: 1.45; }
+  .closing-phrase { font-size: 1.45rem; }
+
+  /* PLATFORM STAGES */
+  .system-title { font-size: clamp(2.1rem, 9vw, 2.9rem); }
+  .system-signature { font-size: 0.56rem; letter-spacing: 0.1em; }
+  .system-headline { font-size: 0.95rem; line-height: 1.3; margin-bottom: 0.55rem; }
+  .system-desc { font-size: 0.79rem; line-height: 1.45; margin-bottom: 0.85rem; }
+  .system-body { padding-top: 0.75rem; }
+  .omega-btn, .exec-btn { min-height: 46px; font-size: 0.72rem; padding: 0.7rem 1.25rem; }
+
   /* LAB & ABOUT */
   .lab-title { font-size: 2.2rem; margin-bottom: 2rem; }
   .about-headline { font-size: 2.2rem; }
   .final-headline { font-size: 1.25rem; margin-bottom: 2rem; }
   .final-link { font-size: 1.3rem; min-height: 52px; }
-  
+
   .main-footer { flex-direction: column; gap: 1rem; text-align: center; }
 }
 
-/* The platform CTAs stay quiet until their interface has been built on screen. */
-.omega-btn, .exec-btn {
-  opacity: 0.55;
-  transform: translate3d(0, 6px, 0);
-  transition: opacity 0.45s ease, transform 0.45s ease;
-}
-
-.omega-btn.cta-live, .exec-btn.cta-live {
-  opacity: 1;
-  transform: translate3d(0, 0, 0);
+/* Very short phones: give the frame a little less and the copy a little more. */
+@media (max-width: 768px) and (max-height: 700px) {
+  .system-header { padding-top: calc(var(--nav-h) + 0.4rem); }
+  .system-title { font-size: 2rem; }
+  .system-desc { font-size: 0.74rem; }
 }
 
 /* =========================================
@@ -719,8 +895,8 @@ body.loading {
    ========================================= */
 @media (prefers-reduced-motion: reduce) {
   .hero-background-video { opacity: 1; transition: none; }
-  .omega-btn, .exec-btn { opacity: 1; transform: none; transition: none; }
-  .sequence-stage { position: relative; }
+  .hero-dim { display: none; }
+  .omega-btn, .exec-btn { opacity: 1; transform: none; transition: none; pointer-events: auto; }
   /* The canvas holds the first frame as a still image. The video element stays
      hidden: it is never played, so showing it would only expose a black box. */
   .fallback-video { display: none; }

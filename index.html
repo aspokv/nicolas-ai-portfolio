@@ -2,27 +2,28 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Nicolas AI | Building in Public, Measuring Everything.</title>
   <meta name="description" content="Eu não coleciono ferramentas. Eu construo sistemas que executam. Experimentos mensuráveis e produtos próprios para quem quer aprender mais rápido e construir melhor." />
   <link rel="canonical" href="https://nicolas.aiexec.com.br/" />
-  
+
   <meta property="og:title" content="Nicolas AI | Systems & Experiments" />
   <meta property="og:description" content="Construindo na interseção entre inteligência artificial, engenharia, design e execução." />
   <meta property="og:url" content="https://nicolas.aiexec.com.br/" />
   <meta property="og:type" content="website" />
   <meta name="theme-color" content="#030303" />
-  
+
   <!-- Preconnect Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  
+
   <!-- Preload First Video Metadata -->
   <link rel="preload" href="/videos/01-opening-1080p.mp4" as="video" type="video/mp4" />
-  
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/style.css" />
-  
+
   <!-- Structured Data JSON-LD -->
   <script type="application/ld+json">
   {
@@ -54,9 +55,13 @@
   </header>
 
   <main>
-    <!-- ACT 01 - OPENING HERO -->
+    <!-- ============================================================
+         ACT 01 — CINEMATIC OPENING
+         One viewport. The footage is the protagonist: a wordmark, a
+         micro-label, one short line and a hairline scroll mark.
+         ============================================================ -->
     <section class="act-section act-opening" id="opening">
-      
+
       <video
         id="hero-video"
         class="hero-background-video"
@@ -71,21 +76,44 @@
         <source src="/videos/01-opening-1080p.mp4" type="video/mp4" />
       </video>
 
-      <div class="hero-content">
-        <div class="hero-kicker mono-tracking" data-reveal>NICOLAS AI — AI SYSTEMS / EXPERIMENTS / PRODUCTS</div>
-        
-        <h1 class="hero-headline">
+      <!-- Cinematic falloff: clear over the face, closing to black at the foot -->
+      <div class="hero-veil" aria-hidden="true"></div>
+      <!-- Scroll-linked dip into the second act. Opacity is a pure function of
+           scroll position; it holds wherever the page is left. -->
+      <div class="hero-dim" aria-hidden="true"></div>
+
+      <div class="hero-frame">
+        <div class="hero-line">
+          <span class="hero-eyebrow mono-tracking" data-reveal>NICOLAS AI — AI SYSTEMS / EXPERIMENTS / PRODUCTS</span>
+          <p class="hero-statement" data-reveal>SISTEMAS QUE <em class="serif-italic">EXECUTAM.</em></p>
+        </div>
+
+        <div class="hero-scroll" data-reveal aria-hidden="true">
+          <span class="hero-scroll-rule"></span>
+          <span class="hero-scroll-label mono-tracking">Scroll</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         ACT 02 — EDITORIAL DECLARATION
+         Born out of the black the first act fades into. No character,
+         no footage: one statement, one support line, one action.
+         ============================================================ -->
+    <section class="act-section act-declaration">
+      <div class="declaration-inner">
+        <h1 class="declaration-headline">
           <div class="clip-line"><span>EU NÃO COLECIONO FERRAMENTAS.</span></div>
           <div class="clip-line"><span>EU CONSTRUO SISTEMAS QUE <em class="serif-italic">EXECUTAM.</em></span></div>
         </h1>
-        
-        <p class="hero-subheadline" data-reveal>
+
+        <p class="declaration-support" data-reveal>
           Experimentos mensuráveis, produtos próprios e sistemas práticos para quem quer aprender mais rápido, construir melhor e sair do hype para a execução.
         </p>
 
-        <div class="hero-ctas" data-reveal>
+        <div class="declaration-actions" data-reveal>
           <a href="#systems" class="btn-primary">Explorar os Sistemas</a>
-          <a href="#lab" class="btn-secondary">Entrar no Laboratório</a>
+          <a href="#lab" class="quiet-link">Entrar no Laboratório <span class="arrow">&rarr;</span></a>
         </div>
       </div>
     </section>
@@ -111,7 +139,7 @@
           <div class="evidence-label mono-tracking">Ativação de Skill</div>
           <div class="evidence-desc">Após refatoração de prompt/descrição.</div>
         </article>
-        
+
         <article class="evidence-item" data-reveal>
           <div class="evidence-number">900k</div>
           <div class="evidence-label mono-tracking">Embaralhamentos</div>
@@ -144,65 +172,69 @@
 
     <div id="systems"></div>
 
-    <!-- ACT 02 - OMEGA VAULT -->
+    <!-- ============================================================
+         ACT 03 — OMEGA VAULT
+         A tall section with a single pinned stage. The canvas is the
+         dominant element; the copy is a quiet column beside it.
+         ============================================================ -->
     <section class="act-section act-omega">
-      
-      <div class="scrub-wrapper">
-        <div class="sequence-stage">
+      <div class="cinematic-stage">
+
+        <div class="stage-media">
           <canvas id="canvas-omega" class="sequence-canvas" aria-hidden="true"></canvas>
           <video id="vid-omega" class="fallback-video" muted playsinline loop disableRemotePlayback>
             <source src="/videos/02-omega-vault-1080p.mp4" type="video/mp4" />
           </video>
         </div>
-      </div>
 
-      <div class="system-content content-left omega-theme">
-        <div class="system-header" data-reveal>
-          <span class="system-label mono-tracking">SYSTEM / 01</span>
-          <h2 class="system-title serif-italic">OMEGA VAULT</h2>
-          <span class="system-signature mono-tracking">ELITE ASSETS. LIMITLESS POSSIBILITIES.</span>
+        <div class="system-content omega-theme">
+          <div class="system-header" data-reveal>
+            <span class="system-label mono-tracking">SYSTEM / 01</span>
+            <h2 class="system-title serif-italic">OMEGA VAULT</h2>
+            <span class="system-signature mono-tracking">ELITE ASSETS. LIMITLESS POSSIBILITIES.</span>
+          </div>
+
+          <div class="system-body">
+            <h3 class="system-headline" data-reveal>PARE DE CONSTRUIR DO ZERO.</h3>
+            <p class="system-desc" data-reveal>
+              Uma biblioteca premium de Claude Skills, MCPs, prompts, agentes, workflows, automações, templates e sistemas prontos para copiar, adaptar e executar.
+            </p>
+            <a href="https://omegavault.com.br/" target="_blank" rel="noopener noreferrer" class="btn-primary omega-btn">Abrir o Cofre</a>
+          </div>
         </div>
 
-        <div class="system-body">
-          <h3 class="system-headline" data-reveal>PARE DE CONSTRUIR DO ZERO.</h3>
-          <p class="system-desc" data-reveal>
-            Uma biblioteca premium de Claude Skills, MCPs, prompts, agentes, workflows, automações, templates e sistemas prontos para copiar, adaptar e executar.
-          </p>
-          <a href="https://omegavault.com.br/" target="_blank" rel="noopener noreferrer" class="btn-primary omega-btn">Abrir o Cofre</a>
-        </div>
       </div>
     </section>
 
-    <!-- ACT 03 - AI EXECUTION OS -->
+    <!-- ============================================================
+         ACT 04 — AI EXECUTION OS
+         ============================================================ -->
     <section class="act-section act-exec">
-      
-      <div class="scrub-wrapper">
-        <div class="sequence-stage">
+      <div class="cinematic-stage">
+
+        <div class="stage-media">
           <canvas id="canvas-exec" class="sequence-canvas" aria-hidden="true"></canvas>
           <video id="vid-exec" class="fallback-video" muted playsinline loop disableRemotePlayback>
             <source src="/videos/03-ai-execution-1080p.mp4" type="video/mp4" />
           </video>
         </div>
-      </div>
 
-      <div class="system-content content-right exec-theme">
-        <div class="system-header" data-reveal>
-          <span class="system-label mono-tracking">SYSTEM / 02</span>
-          <h2 class="system-title serif-italic">AI EXECUTION OS</h2>
-        </div>
-
-        <div class="system-body">
-          <h3 class="system-headline" data-reveal>VOCÊ NÃO PRECISA APRENDER TODA IA. PRECISA SABER ONDE EXECUTAR.</h3>
-          <p class="system-desc" data-reveal>
-            Você descreve o objetivo. O sistema transforma intenção em uma missão estruturada com estratégia, especialistas, ferramentas, prompts e um fluxo claro de execução.
-          </p>
-          
-          <div class="exec-flow mono-tracking" data-reveal>
-            OBJECTIVE &rarr; ANALYSIS &rarr; SPECIALISTS &rarr; TOOLS &rarr; WORKFLOW &rarr; EXECUTION
+        <div class="system-content exec-theme">
+          <div class="system-header" data-reveal>
+            <span class="system-label mono-tracking">SYSTEM / 02</span>
+            <h2 class="system-title serif-italic">AI EXECUTION OS</h2>
+            <span class="system-signature exec-flow mono-tracking">OBJECTIVE &rarr; ANALYSIS &rarr; SPECIALISTS &rarr; TOOLS &rarr; WORKFLOW &rarr; EXECUTION</span>
           </div>
 
-          <a href="https://aiexec.com.br/executar" target="_blank" rel="noopener noreferrer" class="btn-primary exec-btn">Executar um Objetivo</a>
+          <div class="system-body">
+            <h3 class="system-headline" data-reveal>VOCÊ NÃO PRECISA APRENDER TODA IA. PRECISA SABER ONDE EXECUTAR.</h3>
+            <p class="system-desc" data-reveal>
+              Você descreve o objetivo. O sistema transforma intenção em uma missão estruturada com estratégia, especialistas, ferramentas, prompts e um fluxo claro de execução.
+            </p>
+            <a href="https://aiexec.com.br/executar" target="_blank" rel="noopener noreferrer" class="btn-primary exec-btn">Executar um Objetivo</a>
+          </div>
         </div>
+
       </div>
     </section>
 
@@ -266,7 +298,7 @@
 
     <!-- ABOUT & FINAL CTA -->
     <section class="about-section" id="about">
-      
+
       <div class="about-grid">
         <div class="about-text">
           <h2 class="about-headline">
@@ -282,7 +314,7 @@
           <h2 class="final-headline">
             O FUTURO NÃO PRECISA DE MAIS PROMESSAS. <em class="serif-italic">PRECISA DE EXECUÇÃO.</em>
           </h2>
-          
+
           <div class="final-links">
             <a href="https://omegavault.com.br/" target="_blank" rel="noopener noreferrer" class="final-link">Entrar no Omega Vault <span class="arrow">&rarr;</span></a>
             <a href="https://aiexec.com.br/executar" target="_blank" rel="noopener noreferrer" class="final-link">Abrir o AI Execution OS <span class="arrow">&rarr;</span></a>

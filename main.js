@@ -12,6 +12,11 @@ import Lenis from 'lenis'
    There is no timeline between those steps, no playback clock, no gesture
    capture and no input lock. Scroll moves, the canvas redraws on the next
    animation frame. Scroll stops, the canvas stops.
+
+   The pacing of an act is shaped by giving different parts of the sequence
+   different amounts of *distance* — never different amounts of time. A stretch
+   that lingers is a stretch with few frames spread over a lot of scroll, so it
+   still reverses the instant the visitor scrolls back up.
    ========================================= */
 
 document.getElementById('year').textContent = new Date().getFullYear()
@@ -22,13 +27,73 @@ const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches || 'ontou
 
 const SOURCE_W = 1440
 const SOURCE_H = 810
+const SOURCE_ASPECT = SOURCE_W / SOURCE_H
 const FRAME_COUNT = 120
 const PREFETCH_BEHIND = 12
 const PREFETCH_AHEAD = 16
 const MAX_PARALLEL_LOADS = 6          // total in-flight frame requests, all acts
 const MAX_BACKGROUND_LOADS = 2        // of which background prefetch may use
+const MAX_CANVAS_PX = 1600            // cap on either backing-store dimension
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v)
+
+let geometryReady = false
+
+/* =========================================
+   PIECEWISE PACING
+
+   A list of [progress, value] knots read with linear interpolation. Both the
+   frame and the horizontal framing of every act are expressed this way, which
+   makes each of them a pure, continuous function of scroll position: the same
+   scroll position always produces exactly the same picture, in either
+   direction of travel.
+   ========================================= */
+function knotValue(knots, p) {
+  if (p <= knots[0][0]) return knots[0][1]
+  for (let i = 1; i < knots.length; i++) {
+    const p1 = knots[i][0]
+    if (p <= p1) {
+      const p0 = knots[i - 1][0]
+      const t = p1 === p0 ? 0 : (p - p0) / (p1 - p0)
+      return knots[i - 1][1] + (knots[i][1] - knots[i - 1][1]) * t
+    }
+  }
+  return knots[knots.length - 1][1]
+}
+
+/* --- OMEGA VAULT: how the sequence is spread across its scene ---
+   0–10%   frames 0–8     character and hand, SYSTEM / 01
+   10–30%  frames 9–44    the light forms, the title settles
+   30–42%  frames 45–52   the Omega symbol, held for contemplation
+   42–70%  frames 53–89   the vault/portal is built
+   70–90%  frames 90–112  panels and interface
+   90–100% frames 113–119 final state, and only here the CTA           */
+const OMEGA_FRAMES = [[0, 0], [0.10, 8], [0.30, 44], [0.42, 52], [0.70, 89], [0.90, 112], [1, 119]]
+
+/* --- AI EXECUTION OS ---
+   0–10%   frames 0–8     character and hand, SYSTEM / 02
+   10–30%  frames 9–44    sphere and beam, the title settles
+   30–48%  frames 45–70   the glass structure appears
+   48–75%  frames 71–100  the interface is built
+   75–90%  frames 101–112 the complete system
+   90–100% frames 113–119 final state, and only here the CTA           */
+const EXEC_FRAMES = [[0, 0], [0.10, 8], [0.30, 44], [0.48, 70], [0.75, 100], [0.90, 112], [1, 119]]
+
+/* --- Framing ---
+   The two sequences are composed as mirrors of each other, and in both the
+   subject of the shot travels sideways as the act builds. These knots slide the
+   crop window so whatever matters at a given point is the thing on screen:
+
+   Omega     character (right) -> symbol (centre) -> vault interface (left)
+   Execution character (left)  -> sphere (centre) -> mission interface (right)
+
+   0 is the left edge of the frame, 1 the right. Derived from the same scroll
+   progress as everything else, so it cannot drift or carry on after a stop. */
+const OMEGA_PAN = [[0, 0.78], [0.10, 0.77], [0.30, 0.68], [0.42, 0.66], [0.70, 0.44], [0.90, 0.24], [1, 0.16]]
+const EXEC_PAN = [[0, 0.10], [0.10, 0.12], [0.30, 0.30], [0.48, 0.45], [0.75, 0.72], [0.90, 0.84], [1, 0.88]]
+
+// The call to action belongs to the closing stretch of each act.
+const CTA_FRAME = 113
 
 /* =========================================
    GLOBAL RENDER SCHEDULER
@@ -118,12 +183,14 @@ const pumpAll = () => { for (let i = 0; i < pumps.length; i++) pumps[i]() }
    FRAME SEQUENCE
    ========================================= */
 class FrameSequence {
-  constructor(canvasId, sectionSelector, basePath, ctaSelector, ctaFrame) {
+  constructor(canvasId, sectionSelector, basePath, ctaSelector, frameKnots, panKnots) {
     this.canvas = document.getElementById(canvasId)
     this.section = document.querySelector(sectionSelector)
+    this.stage = this.section ? this.section.querySelector('.cinematic-stage') : null
     this.basePath = basePath
     this.cta = ctaSelector ? document.querySelector(ctaSelector) : null
-    this.ctaFrame = ctaFrame || 0
+    this.frameKnots = frameKnots
+    this.panKnots = panKnots
     this.ctaOn = false
     this.frames = new Map()
     this.inflight = new Set()
@@ -131,37 +198,47 @@ class FrameSequence {
     this.queueLo = []
     // (in-flight accounting lives in the shared budget above)
     this.lastDrawn = -1
+    this.lastPan = -1
     this.start = 0
     this.end = 1
-    if (!this.canvas || !this.section) return
+    if (!this.canvas || !this.section) {
+      // Nothing to scrub: never leave the call to action stranded off-stage.
+      if (this.cta) this.cta.classList.add('cta-live')
+      return
+    }
     this.ctx = this.canvas.getContext('2d', { alpha: false })
     this.measure()
     renderables.push(this)
     pumps.push(() => this.pump())
   }
 
-  /* --- geometry: the section's own bounds, no invented scroll corridor --- */
+  /* --- geometry ---
+     The stage is pinned for the whole section, so progress runs from the moment
+     the section reaches the top of the viewport to the moment its bottom edge
+     catches up with the stage and releases it. Measuring the stage rather than
+     assuming a viewport keeps the mapping honest when mobile browser chrome
+     changes the visible height under our feet. */
   measure() {
     const rect = this.section.getBoundingClientRect()
     const top = rect.top + window.scrollY
-    const vh = window.innerHeight
-    const maxScroll = Math.max(1, document.documentElement.scrollHeight - vh)
-    // Frame 0 as the act comes up from the lower quarter of the screen, frame
-    // 119 while it is still well inside the viewport, so the sequence never
-    // finishes after its own copy has already scrolled away.
-    this.start = clamp(top - vh * 0.75, 0, maxScroll)
-    this.end = clamp(top + rect.height - vh * 0.25, 1, maxScroll)
+    const stageH = this.stage ? this.stage.offsetHeight : window.innerHeight
+    const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight)
+    this.start = clamp(top, 0, maxScroll)
+    this.end = clamp(top + rect.height - stageH, 1, maxScroll)
     if (this.end <= this.start) this.end = this.start + 1
     this.sizeCanvas()
   }
 
-  // Backing store follows devicePixelRatio, capped at the source resolution so
-  // phones never allocate more pixels than the frames actually contain.
+  // The backing store follows the box, not the source: the frame is cropped to
+  // fill whatever shape the stage gives it, so a square-ish phone frame is
+  // drawn at the phone's own aspect instead of being letterboxed into 16:9.
   sizeCanvas() {
     const rect = this.canvas.getBoundingClientRect()
+    if (rect.width < 1 || rect.height < 1) return
     const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5)
-    const w = clamp(Math.round((rect.width || SOURCE_W) * dpr), 1, SOURCE_W)
-    const h = Math.max(1, Math.round(w * (SOURCE_H / SOURCE_W)))
+    const scale = Math.min(dpr, MAX_CANVAS_PX / rect.width, MAX_CANVAS_PX / rect.height)
+    const w = Math.max(1, Math.round(rect.width * scale))
+    const h = Math.max(1, Math.round(rect.height * scale))
     if (this.canvas.width === w && this.canvas.height === h) return
     this.canvas.width = w
     this.canvas.height = h
@@ -174,7 +251,7 @@ class FrameSequence {
 
   // The single definition of "which frame belongs to this scroll position".
   frameAt(scrollY) {
-    return Math.floor(this.progressAt(scrollY) * (FRAME_COUNT - 1))
+    return Math.floor(knotValue(this.frameKnots, this.progressAt(scrollY)))
   }
 
   /* --- loading: never blocks scrolling, never draws a stale answer --- */
@@ -225,12 +302,10 @@ class FrameSequence {
       this.frames.set(i, bmp)
       // A late arrival never replays itself. It only asks for a repaint when it
       // is a better match for where the page is RIGHT NOW than what is already
-      // on the canvas, and the repaint re-reads the current scroll position. So
-      // a frame fetched for a position the visitor already left cannot appear,
-      // and once the exact frame is up, nothing repaints again.
-      // Judged against where the page is right now, not against the position
-      // that originally asked for this frame. A frame fetched for a place the
-      // visitor has already left can never take over the canvas.
+      // on the canvas, judged against the current scroll position rather than
+      // the one that originally asked for this frame. So a frame fetched for a
+      // place the visitor has already left can never take over the canvas, and
+      // once the exact frame is up nothing repaints again.
       const want = this.frameAt(window.scrollY)
       const improves = this.lastDrawn < 0
         || Math.abs(i - want) < Math.abs(this.lastDrawn - want)
@@ -280,41 +355,62 @@ class FrameSequence {
     return this.frames.size
   }
 
-  /* --- draw: derived from the scroll position handed in, nothing else --- */
+  /* --- draw ---
+     Crops the 16:9 source to the shape of the stage and slides that crop
+     window to `panX`. Both the frame and the pan come from the same scroll
+     position, so the picture is fully determined by where the page is. */
+  paint(img, alpha, panX) {
+    const cw = this.canvas.width
+    const ch = this.canvas.height
+    const boxAspect = cw / ch
+    let sx, sy, sw, sh
+    if (boxAspect < SOURCE_ASPECT) {
+      sh = SOURCE_H                       // full height, crop the sides
+      sw = SOURCE_H * boxAspect
+      sx = (SOURCE_W - sw) * panX
+      sy = 0
+    } else {
+      sw = SOURCE_W                       // full width, trim top and bottom
+      sh = SOURCE_W / boxAspect
+      sx = 0
+      sy = (SOURCE_H - sh) * 0.5
+    }
+    this.ctx.globalAlpha = alpha
+    this.ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch)
+    this.ctx.globalAlpha = 1
+  }
+
   update(scrollY) {
     if (!this.ctx) return
     const p = this.progressAt(scrollY)
-    const exact = p * (FRAME_COUNT - 1)
+    const exact = knotValue(this.frameKnots, p)
     const a = Math.floor(exact)
     const bIndex = Math.min(FRAME_COUNT - 1, a + 1)
     const mix = exact - a
+    const panX = knotValue(this.panKnots, p)
 
     this.prefetchAround(a)
 
     const drawIndex = this.nearestIndex(a)
     if (drawIndex < 0) return               // nothing decoded yet: leave as is
 
-    const w = this.canvas.width
-    const h = this.canvas.height
-    this.ctx.globalAlpha = 1
-    this.ctx.drawImage(this.frames.get(drawIndex), 0, 0, w, h)
+    this.paint(this.frames.get(drawIndex), 1, panX)
 
     // Spatial cross-fade towards the next frame. This is not an animation: the
     // blend amount is a pure function of the current scroll position.
     if (mix > 0.01 && bIndex !== a && this.frames.has(a) && this.frames.has(bIndex)) {
-      this.ctx.globalAlpha = mix
-      this.ctx.drawImage(this.frames.get(bIndex), 0, 0, w, h)
-      this.ctx.globalAlpha = 1
+      this.paint(this.frames.get(bIndex), mix, panX)
     }
 
     this.lastDrawn = drawIndex
+    this.lastPan = panX
     this.canvas.dataset.frame = a           // frame the scroll position asks for
     this.canvas.dataset.drawn = drawIndex   // frame actually painted
 
     // The call to action lights up only once the platform's interface has been
     // built on screen, and dims again if the visitor scrolls back before it.
     if (this.cta) {
-      const on = a >= this.ctaFrame
+      const on = a >= CTA_FRAME
       if (on !== this.ctaOn) {
         this.ctaOn = on
         this.cta.classList.toggle('cta-live', on)
@@ -339,38 +435,75 @@ function decodeBlob(blob) {
    ========================================= */
 // Only the two platform acts are scrubbed. The hero is a plain looping video
 // and owns no canvas, no frame sequence and no scroll maths.
-// Milestone frames come from the sequences themselves: Omega's vault interface
-// is complete from frame 90, the Execution OS interface from frame 105.
-const omega = new FrameSequence('canvas-omega', '.act-omega', '/sequences/omega', '.omega-btn', 90)
-const execution = new FrameSequence('canvas-exec', '.act-exec', '/sequences/execution', '.exec-btn', 105)
+const omega = new FrameSequence('canvas-omega', '.act-omega', '/sequences/omega', '.omega-btn', OMEGA_FRAMES, OMEGA_PAN)
+const execution = new FrameSequence('canvas-exec', '.act-exec', '/sequences/execution', '.exec-btn', EXEC_FRAMES, EXEC_PAN)
 const sequences = [omega, execution].filter((s) => s.ctx)
+
+/* =========================================
+   SCROLL-LINKED PAGE CHROME
+
+   Both of these are read-outs of the scroll position in exactly the same sense
+   as the canvases: a value in, a style out, nothing running in between.
+   ========================================= */
+const heroSection = document.querySelector('.act-opening')
+const heroDim = document.querySelector('.hero-dim')
+if (heroSection && heroDim && !prefersReducedMotion) {
+  let lastDim = ''
+  renderables.push({
+    update(scrollY) {
+      // The footage sinks into black across the closing fifth of its viewport,
+      // so the declaration that follows is born out of that black.
+      const h = heroSection.offsetHeight || window.innerHeight
+      const t = clamp((scrollY - h * 0.78) / (h * 0.22), 0, 1)
+      const next = (t * 0.96).toFixed(3)
+      if (next !== lastDim) {
+        lastDim = next
+        heroDim.style.opacity = next
+      }
+    },
+  })
+}
+
+const progressFill = document.querySelector('.progress-fill')
+if (progressFill) {
+  let lastP = ''
+  renderables.push({
+    update(scrollY) {
+      const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight)
+      const next = clamp(scrollY / max, 0, 1).toFixed(4)
+      if (next !== lastP) {
+        lastP = next
+        progressFill.style.transform = `scaleX(${next})`
+      }
+    },
+  })
+}
 
 /* =========================================
    EDITORIAL REVEALS
 
    Content reveals itself as its section comes into view. One shot per element,
-   independent of the canvas, and it never gates scrolling.
+   independent of the canvas, and it never gates scrolling. Movement is kept
+   short and small: 16px of travel, well under two thirds of a second.
    ========================================= */
 const revealTargets = document.querySelectorAll('[data-reveal]')
 
 const revealSection = (el) => {
   const lines = el.querySelectorAll('.clip-line span')
-  if (lines.length) gsap.to(lines, { y: '0%', duration: 0.9, stagger: 0.08, ease: 'power3.out' })
+  if (lines.length) gsap.to(lines, { y: '0%', duration: 0.6, stagger: 0.07, ease: 'power3.out' })
   const blocks = el.querySelectorAll('[data-reveal]')
-  if (blocks.length) gsap.to(blocks, { opacity: 1, y: 0, duration: 0.9, stagger: 0.07, ease: 'power3.out' })
+  if (blocks.length) gsap.to(blocks, { opacity: 1, y: 0, duration: 0.6, stagger: 0.06, ease: 'power3.out' })
 }
 
-const SECTIONS = ['.act-opening', '.manifesto-section', '.evidence-wall', '.act-omega', '.act-exec', '.lab-section', '.about-section']
+const SECTIONS = ['.act-opening', '.act-declaration', '.manifesto-section', '.evidence-wall', '.act-omega', '.act-exec', '.lab-section', '.about-section']
   .map((sel) => document.querySelector(sel))
   .filter(Boolean)
-
-SECTIONS.forEach((el, i) => { el.dataset.scene = String(i) })
 
 if (prefersReducedMotion) {
   gsap.set('.clip-line span', { y: '0%' })
   gsap.set(revealTargets, { opacity: 1, y: 0 })
 } else {
-  gsap.set(revealTargets, { opacity: 0, y: 24 })
+  gsap.set(revealTargets, { opacity: 0, y: 16 })
   const io = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
       if (!entry.isIntersecting) return
@@ -486,11 +619,9 @@ function warmExecution() {
   execution.prefetchComplete()
 }
 
-// Distances are only meaningful once the layout has settled; before that the
-// section offsets are still moving and would trigger both acts at once.
-let geometryReady = false
-
 function updatePreloadHorizon(scrollY) {
+  // Distances are only meaningful once the layout has settled; before that the
+  // section offsets are still moving and would trigger both acts at once.
   if (!geometryReady) return
   const vh = window.innerHeight
   if (!omegaWarmed && omega.ctx && scrollY > omega.start - vh * 3) startPlatformPreload()
