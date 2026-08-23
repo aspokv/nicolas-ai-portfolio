@@ -234,8 +234,13 @@ body.loading {
    Exactly one viewport. The footage carries the screen.
    ========================================= */
 .act-opening {
+  /* svh is the small viewport: the height with the mobile browser chrome shown,
+     so the section never grows taller than what is on screen and no white band
+     can appear when the address bar collapses. */
   height: 100svh;
-  background-color: var(--c-carbon);
+  /* The section is born black, and the footage opens on black. The join between
+     page and video is therefore invisible: no white flash, no stray frame. */
+  background-color: var(--c-deep);
   overflow: hidden;
 }
 
@@ -245,21 +250,41 @@ body.loading {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* Centred framing keeps the head and the full body inside the crop. */
-  object-position: 50% 50%;
+  /* The source is a 9:16 portrait plate, so how it meets the screen depends on
+     the screen's shape rather than its width. The three framing rules that
+     follow the veil below are where that is decided; this is the value a
+     screen between square and 16:9 lands on. */
+  object-position: 50% 16%;
   z-index: 0;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.6s ease;
+  transition: opacity 0.45s ease;
 }
 
 .hero-background-video.is-ready {
   opacity: 1;
 }
 
-/* Cinematic falloff only at the extremities. The middle band — where the head
-   and the glasses sit — is left completely clear, and the ramp is pure deep
-   black rather than a grey film over the footage. */
+/* Reduced motion: the scene after the reveal, held as a still. Declared only
+   inside the media query below, so the file is never fetched otherwise. */
+.hero-still {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--c-deep);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: 50% 16%;
+}
+
+/* Cinematic falloff only at the extremities. The footage is already lit by a
+   single warm source and falls off to black on its own, so the veil does two
+   narrow jobs and nothing else: it seats the nav at the top and it lays a bed
+   under the copy at the foot. Everything between — face, glasses, hand, lighter
+   and flame — is left completely untouched, and both ramps are pure deep black
+   rather than a grey film over the image. */
 .hero-veil {
   position: absolute;
   inset: 0;
@@ -267,14 +292,71 @@ body.loading {
   pointer-events: none;
   background:
     linear-gradient(to bottom,
-      rgba(3, 3, 3, 0.78) 0%,
-      rgba(3, 3, 3, 0.26) 9%,
-      rgba(3, 3, 3, 0) 20%),
+      rgba(3, 3, 3, 0.62) 0%,
+      rgba(3, 3, 3, 0.18) 8%,
+      rgba(3, 3, 3, 0) 16%),
     linear-gradient(to top,
-      rgba(3, 3, 3, 0.95) 0%,
-      rgba(3, 3, 3, 0.74) 12%,
-      rgba(3, 3, 3, 0.32) 26%,
-      rgba(3, 3, 3, 0) 42%);
+      rgba(3, 3, 3, 0.94) 0%,
+      rgba(3, 3, 3, 0.66) 11%,
+      rgba(3, 3, 3, 0.22) 24%,
+      rgba(3, 3, 3, 0) 36%);
+}
+
+/* --- Hero framing ---------------------------------------------------------
+   The plate is 720x1280. Which axis gets cropped is decided by the shape of the
+   screen, not by its width, so the framing is keyed to the aspect ratio itself.
+
+   Narrower than 9:16 (every phone held upright): the full height is shown and
+   the crop is horizontal. The band is pushed towards the face, stopping just
+   short of the point where the lighter would leave the frame.
+
+   Wider than 9:16: the full width is shown and the crop is vertical. The band
+   is lifted to sit on the face, the glasses and the flame; the further from
+   portrait the screen is, the tighter that band becomes.
+   ------------------------------------------------------------------------- */
+@media (max-aspect-ratio: 9/16) {
+  .hero-background-video,
+  .hero-still { object-position: 65% 50%; background-position: 65% 50%; }
+}
+
+@media (min-aspect-ratio: 9/16) and (max-aspect-ratio: 1/1) {
+  .hero-background-video,
+  .hero-still { object-position: 50% 22%; background-position: 50% 22%; }
+}
+
+/* Landscape. Past square, a 16:9 window onto a 9:16 plate is only a quarter of
+   its height, and no vertical position exists that holds the face and the flame
+   at the same time — filling the width would mean cropping the shot down to a
+   pair of eyes. So the plate is shown whole at full height instead, set to the
+   right, and the black it already falls off into becomes the field the line is
+   set in. Nothing is stretched, nothing is cropped, and at desktop heights the
+   footage is played close to one-to-one rather than blown up. */
+@media (min-aspect-ratio: 1/1) {
+  .hero-background-video,
+  .hero-still {
+    /* A plate of the footage's own shape, held at full height and set to the
+       right. The two edges are faded out so the panel is not read as a pasted
+       rectangle: the scene simply falls off into the black it was lit against. */
+    inset: 0 6% 0 auto;
+    left: auto;
+    width: auto;
+    height: 100%;
+    aspect-ratio: 9 / 16;
+    object-fit: cover;
+    object-position: 50% 50%;
+    background-size: cover;
+    background-position: 50% 50%;
+    -webkit-mask-image: linear-gradient(to right,
+      rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 1) 7%,
+      rgba(0, 0, 0, 1) 93%, rgba(0, 0, 0, 0) 100%);
+    mask-image: linear-gradient(to right,
+      rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 1) 7%,
+      rgba(0, 0, 0, 1) 93%, rgba(0, 0, 0, 0) 100%);
+  }
+
+  /* The line has the black field to itself, so the foot of the veil only has to
+     seat the copy rather than carry it over the footage. */
+  .hero-line { max-width: min(42%, 620px); }
 }
 
 /* Driven by scroll position, never by a clock. */
@@ -817,8 +899,9 @@ body.loading {
   .nav-brand { font-size: 1.25rem; }
   .nav-progress-bar { display: none; }
 
-  /* HERO — the statement lives in the lower third, clear of the face. */
-  .hero-background-video { object-position: 50% 30%; }
+  /* HERO — the statement lives in the lower third, clear of the face, the hand
+     and the flame. The framing itself is set by the aspect-ratio rules above,
+     which is the axis the crop actually depends on. */
 
   .hero-frame {
     flex-direction: column;
@@ -894,7 +977,14 @@ body.loading {
    REDUCED MOTION FALLBACK
    ========================================= */
 @media (prefers-reduced-motion: reduce) {
-  .hero-background-video { opacity: 1; transition: none; }
+  /* The entrance is not played at all: the visitor is given the scene as it
+     stands after the reveal, as a still, and the page scrolls exactly as it
+     otherwise would. */
+  .hero-background-video { display: none; }
+  .hero-still {
+    display: block;
+    background-image: url('/videos/videomanhero-end.webp');
+  }
   .hero-dim { display: none; }
   .omega-btn, .exec-btn { opacity: 1; transform: none; transition: none; pointer-events: auto; }
   /* The canvas holds the first frame as a still image. The video element stays

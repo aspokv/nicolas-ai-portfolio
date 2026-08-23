@@ -18,8 +18,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 
-  <!-- Preload First Video Metadata -->
-  <link rel="preload" href="/videos/01-opening-1080p.mp4" as="video" type="video/mp4" />
+  <!-- The hero footage is the first pixel of the site: it is fetched at high
+       priority, and only when the visitor has not asked for reduced motion. -->
+  <link rel="preload" href="/videos/videomanhero.mp4" as="video" type="video/mp4"
+        media="(prefers-reduced-motion: no-preference)" fetchpriority="high" />
 
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/style.css" />
@@ -62,19 +64,26 @@
          ============================================================ -->
     <section class="act-section act-opening" id="opening">
 
+      <!-- A narrative entrance, not a loop: it plays once and holds its last
+           frame. The poster is the opening frame, so the first paint of the
+           section is already the footage rather than a flash of anything else. -->
       <video
         id="hero-video"
         class="hero-background-video"
         autoplay
         muted
-        loop
         playsinline
         preload="auto"
+        poster="/videos/videomanhero-start.webp"
         aria-hidden="true"
         disableRemotePlayback
       >
-        <source src="/videos/01-opening-1080p.mp4" type="video/mp4" />
+        <source src="/videos/videomanhero.mp4" type="video/mp4" />
       </video>
+
+      <!-- Reduced motion gets the scene after the reveal, as a still. The image
+           is only ever fetched inside that media query. -->
+      <div class="hero-still" aria-hidden="true"></div>
 
       <!-- Cinematic falloff: clear over the face, closing to black at the foot -->
       <div class="hero-veil" aria-hidden="true"></div>

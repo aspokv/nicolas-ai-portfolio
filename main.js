@@ -433,7 +433,7 @@ function decodeBlob(blob) {
 /* =========================================
    SEQUENCES
    ========================================= */
-// Only the two platform acts are scrubbed. The hero is a plain looping video
+// Only the two platform acts are scrubbed. The hero is a one-shot entrance video
 // and owns no canvas, no frame sequence and no scroll maths.
 const omega = new FrameSequence('canvas-omega', '.act-omega', '/sequences/omega', '.omega-btn', OMEGA_FRAMES, OMEGA_PAN)
 const execution = new FrameSequence('canvas-exec', '.act-exec', '/sequences/execution', '.exec-btn', EXEC_FRAMES, EXEC_PAN)
@@ -548,42 +548,72 @@ remeasure()
 /* =========================================
    HERO VIDEO
 
-   Plays on its own, muted and looping, with no relationship to the scroll.
+   An entrance, played exactly once. It opens in the dark, the lighter is struck,
+   the scene is revealed, and then it stops on its last frame and stays there.
+   Nothing about it is tied to the scroll: scrolling away and back does not
+   restart it, and it never loops.
    ========================================= */
 const heroVideo = document.getElementById('hero-video')
 
 if (heroVideo) {
+  // Set on the element as well as in the markup: these three are what allow a
+  // mobile browser to start the footage inline instead of refusing it or
+  // opening a fullscreen player, so nothing here is left to the attribute alone.
   heroVideo.muted = true
   heroVideo.defaultMuted = true
   heroVideo.playsInline = true
+  heroVideo.loop = false
+  heroVideo.controls = false
 
   if (prefersReducedMotion) {
-    // A single representative still instead of continuous motion.
+    // The entrance is not played and not even fetched: the CSS shows the closing
+    // frame as a still instead. Dropping the sources and reloading cancels the
+    // request the markup already started.
     heroVideo.autoplay = false
     heroVideo.removeAttribute('autoplay')
     heroVideo.pause()
-    const freeze = () => { heroVideo.pause(); heroVideo.classList.add('is-ready') }
-    heroVideo.addEventListener('loadeddata', freeze, { once: true })
-    if (heroVideo.readyState >= 2) freeze()
+    heroVideo.querySelectorAll('source').forEach((source) => source.remove())
+    heroVideo.removeAttribute('src')
+    heroVideo.load()
   } else {
     const tryPlay = () => {
       const attempt = heroVideo.play()
       if (attempt && attempt.catch) attempt.catch(() => {})
     }
-    const onReady = () => { heroVideo.classList.add('is-ready'); tryPlay(); startPlatformPreload() }
+
+    // The element is revealed only once there are frames to show, so the section
+    // holds its own black until then rather than flashing anything.
+    const reveal = () => heroVideo.classList.add('is-ready')
+    const onReady = () => { reveal(); tryPlay(); startPlatformPreload() }
     heroVideo.addEventListener('canplay', onReady, { once: true })
-    heroVideo.addEventListener('loadeddata', () => heroVideo.classList.add('is-ready'), { once: true })
+    heroVideo.addEventListener('loadeddata', reveal, { once: true })
     if (heroVideo.readyState >= 3) onReady()
+    else if (heroVideo.readyState >= 2) reveal()
+
+    // The opening is played from its beginning, whatever position a reload or a
+    // restored session left behind.
+    const rewindOnce = () => { try { heroVideo.currentTime = 0 } catch (e) {} }
+    if (heroVideo.readyState >= 1) rewindOnce()
+    else heroVideo.addEventListener('loadedmetadata', rewindOnce, { once: true })
+
     tryPlay()
 
-    // If autoplay is refused, resume silently on the first interaction. No
-    // controls are shown and nothing is blocked.
+    // The last frame is the state the hero rests in. Pausing on `ended` keeps
+    // the element on screen holding that frame; without it a browser is free to
+    // decide what a finished video shows.
+    heroVideo.addEventListener('ended', () => heroVideo.pause())
+
+    // If autoplay is refused, resume silently on the first interaction — but
+    // only while the entrance still has somewhere to go. Once it has ended, an
+    // interaction must never start it again.
     const resume = () => {
+      if (heroVideo.ended) { stopResume(); return }
       if (heroVideo.paused) tryPlay()
-      if (!heroVideo.paused) {
-        window.removeEventListener('touchstart', resume)
-        window.removeEventListener('pointerdown', resume)
-      }
+      if (!heroVideo.paused) stopResume()
+    }
+    function stopResume() {
+      window.removeEventListener('touchstart', resume)
+      window.removeEventListener('pointerdown', resume)
     }
     window.addEventListener('touchstart', resume, { passive: true })
     window.addEventListener('pointerdown', resume, { passive: true })
